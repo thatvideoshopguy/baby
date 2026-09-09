@@ -1,12 +1,8 @@
 package com.manchesterbaby.baby.utils;
 
-import javax.swing.ImageIcon;
 import java.awt.Image;
 import java.awt.image.BufferedImage;
 import java.awt.Toolkit;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.stream.Stream;
 
 import org.junit.jupiter.api.Test;
 
@@ -15,34 +11,6 @@ import com.manchesterbaby.baby.utils.ImageUtils;
 import static org.junit.jupiter.api.Assertions.*;
 
 class ImageUtilsTest {
-
-    @Test
-    void testLoadImageIcon_validImage() {
-        ImageIcon icon = ImageUtils.loadImageIcon("/images/test-image.png", 1024 * 1024);
-        assertNotNull(icon, "ImageIcon should not be null for a valid image.");
-    }
-
-    @Test
-    void testLoadImageIcon_nonExistentImage() throws Exception {
-        // Create a temporary directory to simulate a file structure
-        Path tempDir = Files.createTempDirectory("test-images");
-
-        // Generate a non-existent file path in the temp directory
-        String nonExistentFilePath = tempDir.resolve("non-existent.png").toString();
-
-        // Attempt to load the non-existent image
-        ImageIcon icon = ImageUtils.loadImageIcon(nonExistentFilePath, 1024 * 1024);
-        assertNull(icon, "ImageIcon should be null for a non-existent image.");
-
-        // Clean up
-        try (Stream<Path> paths = Files.walk(tempDir)) {
-            paths.map(Path::toFile).forEach(file -> {
-                if (!file.delete()) {
-                    System.err.println("Failed to delete file: " + file);
-                }
-            });
-        }
-    }
 
     @Test
     void testLoadImage_validImage() {

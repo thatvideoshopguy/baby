@@ -1,6 +1,5 @@
 package com.manchesterbaby.baby.utils;
 
-import javax.swing.ImageIcon;
 import java.awt.Component;
 import java.awt.Graphics2D;
 import java.awt.Image;
@@ -15,18 +14,6 @@ import java.io.InputStream;
  * Utility class for loading and processing images from the classpath.
  */
 public class ImageUtils {
-
-    /**
-     * Loads an image from the classpath and returns it as an ImageIcon.
-     *
-     * @param imagePath    The path to the image file in the classpath.
-     * @param maxImageSize The maximum size of the image in bytes.
-     * @return An ImageIcon if the image is successfully loaded, null otherwise.
-     */
-    public static ImageIcon loadImageIcon(String imagePath, int maxImageSize) {
-        Image image = loadImage(imagePath, maxImageSize);
-        return image != null ? new ImageIcon(image) : null;
-    }
 
     /**
      * Loads an image from the classpath.
@@ -119,44 +106,5 @@ public class ImageUtils {
             graphics.dispose();
         }
         return bufferedImage;
-    }
-
-    /**
-     * Combines two images into a single new image by drawing the second image on top of the first.
-     *
-     * @param baseImage The base image that will be drawn first
-     * @param overlayImage The image to draw on top of the base image
-     * @return A new BufferedImage containing both images combined, or null if either input is null
-     */
-    public static BufferedImage combineImages(Image baseImage, Image overlayImage) {
-        if (baseImage == null || overlayImage == null) {
-            return null;
-        }
-
-        // Ensure images are fully loaded
-        MediaTracker tracker = new MediaTracker(new Component(){});
-        tracker.addImage(baseImage, 0);
-        tracker.addImage(overlayImage, 1);
-        try {
-            tracker.waitForAll();
-        } catch (InterruptedException e) {
-            System.err.println("Error waiting for images to load: " + e);
-            return null;
-        }
-
-        // Create a buffered image with transparency
-        BufferedImage combined = new BufferedImage(
-            baseImage.getWidth(null),
-            baseImage.getHeight(null),
-            BufferedImage.TYPE_INT_ARGB
-        );
-
-        // Get the graphics context and draw both images
-        Graphics2D g2d = combined.createGraphics();
-        g2d.drawImage(baseImage, 0, 0, null);
-        g2d.drawImage(overlayImage, 0, 0, null);
-        g2d.dispose();
-
-        return combined;
     }
 }
