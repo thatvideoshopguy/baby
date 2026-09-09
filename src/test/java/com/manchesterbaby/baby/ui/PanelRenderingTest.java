@@ -1,9 +1,15 @@
 package com.manchesterbaby.baby.ui;
 
+import com.manchesterbaby.baby.core.Store;
+import com.manchesterbaby.baby.ui.components.InterlockingPushButton;
+import com.manchesterbaby.baby.ui.components.KeySwitch;
 import com.manchesterbaby.baby.ui.components.PanelIcons;
+import com.manchesterbaby.baby.ui.components.PushButton;
+import com.manchesterbaby.baby.ui.components.ToggleSwitch;
 
 import org.junit.jupiter.api.Test;
 
+import javax.swing.AbstractButton;
 import javax.swing.Icon;
 import javax.swing.JPanel;
 import javax.swing.SwingUtilities;
@@ -11,6 +17,7 @@ import java.awt.Graphics2D;
 import java.awt.Point;
 import java.awt.Rectangle;
 import java.awt.image.BufferedImage;
+import java.util.Arrays;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -57,6 +64,68 @@ class PanelRenderingTest {
     }
 
     @Test
+    void originalSpritesLoadAndKeepTheSameFootprint() {
+        try {
+            PanelIcons.setUseBitmaps(true);
+            assertSize(PanelIcons.toggleUp(), 32, 33);
+            assertSize(PanelIcons.pushIn(), 30, 33);
+            assertSize(PanelIcons.keyUp(PanelIcons.KEY_IVORY), 29, 32);
+
+            for (String sprite : new String[]{"toggle_switch_up.png", "toggle_switch_down.png",
+                    "hole.gif", "pushin.gif", "pushout.gif", "ibuttonin.gif", "ibuttonout.gif",
+                    "greyup.png", "greydown.png", "whiteup.png", "whitedown.png",
+                    "bit0.gif", "bit1.gif", "bit0bright.gif", "bit1bright.gif", "mainonlamp.png"}) {
+                assertNotNull(PanelIcons.sprite(sprite), sprite + " should load");
+            }
+
+            // the bitmap really is what gets painted, not the vector underneath it
+            BufferedImage bitmap = render(PanelIcons.pushIn());
+            PanelIcons.setUseBitmaps(false);
+            BufferedImage vector = render(PanelIcons.pushIn());
+            assertNotEquals(bitmap.getRGB(15, 17), vector.getRGB(15, 17),
+                    "bitmap and vector artwork should differ");
+        } finally {
+            PanelIcons.setUseBitmaps(false);
+        }
+    }
+
+    @Test
+    void hoveringDoesNotChangeHowAControlLooks() {
+        // GTK enables rollover and, with no rollover icon set, paints the selected icon
+        // instead: hovering an off switch drew it on. The panel has no hover state, so no
+        // control may react to the pointer.
+        for (AbstractButton button : new AbstractButton[]{
+                new ToggleSwitch("x"), new PushButton("x"), new InterlockingPushButton("x"),
+                new KeySwitch("x", KeySwitch.KeyColour.GREY)}) {
+            String name = button.getClass().getSimpleName();
+            assertFalse(button.isRolloverEnabled(), name + " should not react to the pointer");
+
+            button.setSize(48, 48);
+            new JPanel(null).add(button);
+            BufferedImage plain = paint(button);
+            button.getModel().setRollover(true);
+            assertEquals(0, difference(plain, paint(button)), name + " changed when hovered");
+        }
+    }
+
+    private static BufferedImage paint(AbstractButton button) {
+        BufferedImage image = new BufferedImage(
+                button.getWidth(), button.getHeight(), BufferedImage.TYPE_INT_ARGB);
+        Graphics2D g = image.createGraphics();
+        button.paint(g);
+        g.dispose();
+        return image;
+    }
+
+    private static int difference(BufferedImage a, BufferedImage b) {
+        int changed = 0;
+        for (int y = 0; y < a.getHeight(); y++)
+            for (int x = 0; x < a.getWidth(); x++)
+                if (a.getRGB(x, y) != b.getRGB(x, y)) changed++;
+        return changed;
+    }
+
+    @Test
     void iconsDrawSomething() {
         for (Icon icon : new Icon[]{
                 PanelIcons.toggleUp(), PanelIcons.toggleDown(),
@@ -85,12 +154,13 @@ class PanelRenderingTest {
     }
 
     private static boolean sameArtwork(Icon a, Icon b) {
-        BufferedImage first = render(a);
-        BufferedImage second = render(b);
-        for (int y = 0; y < first.getHeight(); y++)
-            for (int x = 0; x < first.getWidth(); x++)
-                if (first.getRGB(x, y) != second.getRGB(x, y)) return false;
-        return true;
+        return Arrays.equals(pixels(render(a)), pixels(render(b)));
+    }
+
+    private static int[] pixels(BufferedImage image) {
+        int w = image.getWidth();
+        int h = image.getHeight();
+        return image.getRGB(0, 0, w, h, null, 0, w);
     }
 
     /**
@@ -158,6 +228,33 @@ class PanelRenderingTest {
         assertEquals(638, onPanel.y, "nested control drifted vertically");
         assertEquals(75, control.getWidth(), "nested control width");
         assertEquals(66, control.getHeight(), "nested control height");
+    }
+
+    /**
+     * A click on the CRT has to land on the line the user aimed at. The raster is stretched
+     * to fill the panel's height, but a mouse position is mapped back through the single
+     * width-derived scale - which only holds while the panel keeps the CRT's aspect ratio.
+     * Rounding makes the two ratios differ slightly, so check every line, not just one.
+     */
+    @Test
+    void crtClicksMapBackToTheLineUnderThem() {
+        CrtPanel crt = new CrtPanel(new Store(), null);
+        int width = 516; // the size ScaledLayout gives the CRT on a panel scaled to 1.29x
+        int height = 374;
+        crt.setSize(width, height);
+
+        for (int line = 0; line < 32; line++) {
+            // middle of where this line is actually drawn, which follows the height
+            double onScreen = (CrtPanel.DEFAULT_RASTER_OFFSET_Y + CrtPanel.DEFAULT_SPACING
+                    + line * CrtPanel.DEFAULT_BIT_LENGTH + 1.5)
+                    * height / (double) CrtPanel.DEFAULT_CRT_HEIGHT;
+
+            int decoded = (crt.toLogicalY((int) onScreen)
+                    - CrtPanel.DEFAULT_RASTER_OFFSET_Y - CrtPanel.DEFAULT_SPACING)
+                    / CrtPanel.DEFAULT_BIT_LENGTH;
+
+            assertEquals(line, decoded, "a click on line " + line + " decoded elsewhere");
+        }
     }
 
     /**
