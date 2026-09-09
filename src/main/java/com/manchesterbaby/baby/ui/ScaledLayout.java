@@ -26,9 +26,6 @@ import java.util.Map;
  */
 public class ScaledLayout implements LayoutManager2 {
 
-    /** Smallest usable fraction of the design size, used for the minimum layout size. */
-    private static final double MINIMUM_SCALE = 0.5;
-
     private final int designWidth;
     private final int designHeight;
     private final Map<Component, Rectangle> designBounds = new LinkedHashMap<>();
@@ -51,10 +48,6 @@ public class ScaledLayout implements LayoutManager2 {
      * @param designHeight height of the design coordinate space
      */
     public ScaledLayout(int designWidth, int designHeight) {
-        if (designWidth <= 0 || designHeight <= 0) {
-            throw new IllegalArgumentException(
-                    "Design size must be positive: " + designWidth + "x" + designHeight);
-        }
         this.designWidth = designWidth;
         this.designHeight = designHeight;
     }
@@ -70,7 +63,7 @@ public class ScaledLayout implements LayoutManager2 {
      * controls.
      */
     public Rectangle getContentBounds() {
-        return new Rectangle(contentBounds);
+        return contentBounds;
     }
 
     @Override
@@ -102,10 +95,7 @@ public class ScaledLayout implements LayoutManager2 {
 
     @Override
     public Dimension minimumLayoutSize(Container parent) {
-        Insets insets = parent.getInsets();
-        return new Dimension(
-                (int) (designWidth * MINIMUM_SCALE) + insets.left + insets.right,
-                (int) (designHeight * MINIMUM_SCALE) + insets.top + insets.bottom);
+        return preferredLayoutSize(parent);
     }
 
     @Override
@@ -170,10 +160,8 @@ public class ScaledLayout implements LayoutManager2 {
             int width = parent.getWidth() - insets.left - insets.right;
             int height = parent.getHeight() - insets.top - insets.bottom;
 
-            scale = Math.min(width / (double) designWidth, height / (double) designHeight);
-            if (scale < 0) {
-                scale = 0;
-            }
+            scale = Math.max(0,
+                    Math.min(width / (double) designWidth, height / (double) designHeight));
             originX = insets.left + (width - designWidth * scale) / 2;
             originY = insets.top + (height - designHeight * scale) / 2;
         }
