@@ -4,6 +4,9 @@ import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JMenu;
 import javax.swing.JMenuItem;
 
+import java.awt.Window;
+
+import com.manchesterbaby.baby.ui.components.PanelIcons;
 import com.manchesterbaby.baby.utils.AppSettings;
 
 public class SettingsMenu {
@@ -27,6 +30,19 @@ public class SettingsMenu {
         showDisconnectedButtonsItem.addActionListener(e -> AppSettings.getInstance().setShowDisconnectedButtons(showDisconnectedButtonsItem.isSelected()));
         
 
+
+        // Draws the panel with the original bitmap sprites instead of the vectors traced
+        // from them: sharp at 1:1, soft when the window is enlarged. Here so the two can be
+        // compared in place rather than across a restart.
+        JCheckBoxMenuItem originalArtworkItem = new JCheckBoxMenuItem("Original Artwork");
+        originalArtworkItem.setSelected(PanelIcons.useBitmaps());
+        originalArtworkItem.addActionListener(e -> {
+            PanelIcons.setUseBitmaps(originalArtworkItem.isSelected());
+            for (Window window : Window.getWindows()) {
+                window.repaint();
+            }
+        });
+        settingsMenu.add(originalArtworkItem);
 
         JMenu disassemblerSettingsMenu = new JMenu("Disassembler");
         
