@@ -49,7 +49,7 @@ public class RecentFilesManager {
             // Try parsing as URL first
             FileLocation fileLocation;
             try {
-                URL url = new URL(location);
+                URL url = URI.create(location).toURL();
                 fileLocation = new FileLocation(url);
             } catch (Exception e) {
                 // If not a URL, treat as file path
@@ -109,7 +109,7 @@ public class RecentFilesManager {
                     try {
                         FileLocation fileLocation;
                         if ("url".equals(type)) {
-                            fileLocation = new FileLocation(new URL(location));
+                            fileLocation = new FileLocation(URI.create(location).toURL());
                         } else {
                             File file = new File(location).getCanonicalFile();
                             fileLocation = new FileLocation(file);

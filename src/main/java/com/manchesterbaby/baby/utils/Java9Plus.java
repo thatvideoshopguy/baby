@@ -21,7 +21,7 @@ public class Java9Plus {
             // macOS-specific dock icon setting (requires Java 9 or later)
             // equivalent to
             //      java.awt.Taskbar.getTaskbar().setIconImage(icon);
-            Class taskbarCls = null;
+            Class<?> taskbarCls = null;
             try {
                 taskbarCls = Class.forName("java.awt.Taskbar");
                 java.lang.reflect.Method getTaskbarMethod = taskbarCls.getMethod("getTaskbar");

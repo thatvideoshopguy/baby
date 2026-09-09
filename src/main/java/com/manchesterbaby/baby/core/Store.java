@@ -866,8 +866,7 @@ public class Store
 			case Control.FUNC_SUB :
 			case Control.FUNC_SUB5 :
 				int actionLine=Control.getLineNumber(line);
-				output += " (" + getLine(actionLine) + ")";  // drop through to here
-			default :
+				output += " (" + getLine(actionLine) + ")";
 		}
 		
 		return output;
@@ -1083,7 +1082,9 @@ public class Store
 		
 		// can't resize ByteBuffer so create a new byte array of correct size
 		byte[] byteArray = new byte[bytesWritten];
-		((ByteBuffer)buffer).rewind(); // occasionally seeing NoSuchMethodError in dev on later than Java 8 JDKs so explicitly cast to for the right class support in Java 8
+		// <release>8</release> in pom.xml binds this to Buffer.rewind(), so it no longer needs
+		// the cast that used to avoid a NoSuchMethodError when built on a Java 9+ JDK
+		buffer.rewind();
 		buffer.get(byteArray);
 
 		// Convert to base64url

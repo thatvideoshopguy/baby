@@ -39,7 +39,7 @@ public class MiscUtils {
                 manifestPath = Baby.class.getClassLoader().getResource("META-INF/MANIFEST.MF").toString();
             }
 
-            Manifest manifest = new Manifest(new java.net.URL(manifestPath).openStream());
+            Manifest manifest = new Manifest(java.net.URI.create(manifestPath).toURL().openStream());
             buildTime = manifest.getMainAttributes().getValue("Build-Time");
         } catch (Exception ex) {
             System.err.println("Error reading manifest: " + ex.getMessage());
@@ -155,7 +155,7 @@ public class MiscUtils {
                 // Use sw_vers command to get accurate macOS version
                 try {
                     // Get macOS version
-                    Process p = Runtime.getRuntime().exec("sw_vers -productVersion");
+                    Process p = Runtime.getRuntime().exec(new String[]{"sw_vers", "-productVersion"});
                     BufferedReader reader = new BufferedReader(
                         new InputStreamReader(p.getInputStream())
                     );
