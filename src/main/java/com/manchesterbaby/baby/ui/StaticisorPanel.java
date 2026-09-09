@@ -7,7 +7,7 @@ import com.manchesterbaby.baby.utils.AppSettings;
 
 import static com.manchesterbaby.baby.utils.CallbackUtils.runCallback;
 
-import java.awt.*;
+import java.awt.Rectangle;
 
 
 public class StaticisorPanel extends JPanel {
@@ -18,36 +18,37 @@ public class StaticisorPanel extends JPanel {
     private final ToggleSwitch[] lineSwitch = new ToggleSwitch[13];
     private final ToggleSwitch[] functionSwitch = new ToggleSwitch[8];
 
+    // Design coordinates of the staticisor switches
+    public static final int DESIGN_WIDTH = 700;
+    public static final int DESIGN_HEIGHT = 124;
+    private static final int SWITCH_WIDTH = 34;
+    private static final int SWITCH_HEIGHT = 37;
+    private static final int LINE_ROW_Y = 25;
+    private static final int LINE_ORIGIN_X = 112;
+    private static final int FUNCTION_ROW_Y = 62;
+    private static final int FUNCTION_ORIGIN_X = 231;
+    private static final int MAN_AUTO_X = 469;
+
     public StaticisorPanel() {
-        setLayout(new GridBagLayout());
+        setLayout(new ScaledLayout(DESIGN_WIDTH, DESIGN_HEIGHT));
         setOpaque(false);
-        setPreferredSize(new Dimension(300, 135));
-
-        GridBagConstraints gridBagConstraints = new GridBagConstraints();
-        gridBagConstraints.insets = new Insets(0, 0, 0, 0);
-
-        gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 0;
 
         ToggleSwitch dud = new ToggleSwitch("Left unconnected.");
         dud.setSelected(true); // Ensures it starts in the correct default state
-        add(dud); // Needed to align ManAuto switch with the L stat switches
+        place(dud, LINE_ORIGIN_X, LINE_ROW_Y); // Needed to align ManAuto switch with the L stat switches
         dud.setVisible(AppSettings.getInstance().isShowDisconnectedButtons());
 
-        initialiseLineSwitches(gridBagConstraints);  // L stat switches
-
-        gridBagConstraints.anchor = GridBagConstraints.LINE_END;
-        gridBagConstraints.gridy = 1;
-        gridBagConstraints.gridwidth = 2;
-        gridBagConstraints.insets = new Insets(0, 0, 0, 0);
-
-        initialiseFunctionSwitches(gridBagConstraints); // F stat switches
+        initialiseLineSwitches();  // L stat switches
+        initialiseFunctionSwitches(); // F stat switches
 
         // ManAuto switch
         manAuto = new ToggleSwitch("Select whether to execute the store or the manual instruction.");
         manAuto.addActionListener(e -> runCallback(onManAutoChange));
-        gridBagConstraints.gridx = 10;
-        add(manAuto, gridBagConstraints);
+        place(manAuto, MAN_AUTO_X, FUNCTION_ROW_Y);
+    }
+
+    private void place(ToggleSwitch toggleSwitch, int x, int y) {
+        add(toggleSwitch, new Rectangle(x, y, SWITCH_WIDTH, SWITCH_HEIGHT));
     }
 
 
@@ -97,10 +98,7 @@ public class StaticisorPanel extends JPanel {
     }
 
 
-    private void initialiseLineSwitches(GridBagConstraints gridBagConstraints) {
-        JPanel linePanel = new JPanel();
-        linePanel.setOpaque(false);
-
+    private void initialiseLineSwitches() {
         for (int i = 0; i < 13; i++) {
             if (i < 5) {
                 lineSwitch[i] = new ToggleSwitch("Selects the action line to be adjusted or executed.");
@@ -117,9 +115,8 @@ public class StaticisorPanel extends JPanel {
                 lineSwitch[i].setEnabled(false);
             }
 
-            // Set GridBagConstraints and add to the panel
-            gridBagConstraints.gridx = i + 1;
-            add(lineSwitch[i], gridBagConstraints);
+            // the dud switch occupies the first position, so these start one along
+            place(lineSwitch[i], LINE_ORIGIN_X + (i + 1) * SWITCH_WIDTH, LINE_ROW_Y);
 
             // Add ActionListener
             lineSwitch[i].addActionListener(e -> runCallback(onLineSwitchChange));
@@ -127,10 +124,7 @@ public class StaticisorPanel extends JPanel {
     }
 
 
-    private void initialiseFunctionSwitches(GridBagConstraints gridBagConstraints) {
-        JPanel functionPanel = new JPanel();
-        functionPanel.setOpaque(false);
-
+    private void initialiseFunctionSwitches() {
         for (int i = 0; i < 7; i++) {
 
             if (i < 3) {
@@ -149,10 +143,7 @@ public class StaticisorPanel extends JPanel {
                 functionSwitch[i].setVisible(false);
             }
 
-            // Set GridBagConstraints and add to the panel
-            gridBagConstraints.gridx = i + 3;
-            gridBagConstraints.anchor = GridBagConstraints.CENTER;
-            add(functionSwitch[i], gridBagConstraints);
+            place(functionSwitch[i], FUNCTION_ORIGIN_X + i * SWITCH_WIDTH, FUNCTION_ROW_Y);
         }
     }
 

@@ -85,7 +85,6 @@ public class Baby extends JFrame {
 
             crtPanel = new CrtPanel(store, control);
             crtPanel.setOpaque(false);
-            crtPanel.setPreferredSize(new Dimension(400, 386));
 
             // Create main content panel that will hold either the mainPanel or tabbedPane
             mainContentPanel = new JPanel(new BorderLayout());
@@ -99,15 +98,6 @@ public class Baby extends JFrame {
             StaticisorPanel staticisorPanel = new StaticisorPanel();
             TypewriterPanel typewriterPanel = new TypewriterPanel();
             CrtControlPanel crtControlPanel = new CrtControlPanel();
-
-            // A container for all switch panel components
-            JPanel switchPanel = new JPanel();
-            switchPanel.setLayout(new BoxLayout(switchPanel, BoxLayout.Y_AXIS));
-            switchPanel.setOpaque(false);
-            switchPanel.add(typewriterPanel);
-            switchPanel.add(staticisorPanel);
-            switchPanel.add(crtControlPanel);
-
 
             // Create SimulationSpeedTracker instance
             SimulationSpeedTracker simulationSpeedTracker = new SimulationSpeedTracker(control);
@@ -151,12 +141,13 @@ public class Baby extends JFrame {
             // Tell control about staticisorPanel and crtControlPanel
             control.setSwitchPanel(staticisorPanelController, crtControlPanelController);
 
-            // Create a container mainPanel that wraps crtPanel and switchPanel
+            // Lay the controls out at their places on the machine panel photograph
             mainPanel = new BackgroundPanel();
-            mainPanel.setLayout(new BorderLayout());
             mainPanel.setOpaque(false);
-            mainPanel.add(crtPanel, BorderLayout.NORTH);
-            mainPanel.add(switchPanel);
+            mainPanel.add(crtPanel, new Rectangle(0, 0, CrtPanel.DEFAULT_CRT_WIDTH, CrtPanel.DEFAULT_CRT_HEIGHT));
+            mainPanel.add(typewriterPanel, new Rectangle(0, 386, TypewriterPanel.DESIGN_WIDTH, TypewriterPanel.DESIGN_HEIGHT));
+            mainPanel.add(staticisorPanel, new Rectangle(0, 653, StaticisorPanel.DESIGN_WIDTH, StaticisorPanel.DESIGN_HEIGHT));
+            mainPanel.add(crtControlPanel, new Rectangle(0, 777, CrtControlPanel.DESIGN_WIDTH, CrtControlPanel.DESIGN_HEIGHT));
 
             // Add main panel to content panel
             mainContentPanel.add(mainPanel, BorderLayout.CENTER);
@@ -402,13 +393,10 @@ public class Baby extends JFrame {
         }
 
         Baby baby = new Baby();
-      
-        baby.setSize(700, 950);
-    
 
-        
+        baby.setSize(700, 950);
+        baby.setMinimumSize(new Dimension(380, 540));
         baby.setVisible(true);
-        baby.setResizable(false);
 
         if(CheerpJUtils.onCheerpj()) {
             CheerpJUtils.setupJavascriptInteface(baby);

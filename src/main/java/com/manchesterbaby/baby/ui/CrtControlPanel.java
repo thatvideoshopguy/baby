@@ -7,17 +7,12 @@ import com.manchesterbaby.baby.ui.components.KeySwitch;
 import com.manchesterbaby.baby.ui.components.ToggleSwitch;
 import com.manchesterbaby.baby.utils.AppSettings;
 
-import javax.swing.BorderFactory;
 import javax.swing.ButtonGroup;
 
-import java.awt.Dimension;
-import java.awt.GridBagLayout;
-import java.awt.GridBagConstraints;
-import java.awt.Insets;
+import java.awt.Rectangle;
 
 import static com.manchesterbaby.baby.utils.CallbackUtils.runCallback;
 
-import java.awt.BorderLayout;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
@@ -47,29 +42,60 @@ public class CrtControlPanel extends JPanel {
 
     private final KeySwitch kspSwitch;
 
+    // Design coordinates of the CRT control panel, as positions on the machine
+    public static final int DESIGN_WIDTH = 700;
+    public static final int DESIGN_HEIGHT = 113;
+
+    private static final int DISPLAY_BUTTON_Y = 23;
+    private static final int DISPLAY_BUTTON_WIDTH = 40;
+    private static final int DISPLAY_BUTTON_HEIGHT = 35;
+
+    private static final int KEY_SWITCH_Y = 59;
+    private static final int KEY_SWITCH_WIDTH = 63;
+    private static final int KEY_SWITCH_HEIGHT = 56;
+
+    private static final int STOP_RUN_X = 120;
+    private static final int STOP_RUN_Y = 67;
+    private static final int STOP_RUN_WIDTH = 50;
+    private static final int STOP_RUN_HEIGHT = 30;
+
+    private static final int WRITE_ERASE_X = 623;
+    private static final int WRITE_ERASE_Y = 20;
+    private static final int WRITE_ERASE_WIDTH = 34;
+    private static final int WRITE_ERASE_HEIGHT = 37;
+
+    private void placeDisplayButton(InterlockingPushButton button, int x) {
+        add(button, new Rectangle(x, DISPLAY_BUTTON_Y,
+                DISPLAY_BUTTON_WIDTH, DISPLAY_BUTTON_HEIGHT));
+    }
+
+    // x is the switch's place along the black panel, left to right
+    private void placeKeySwitch(KeySwitch keySwitch, int x) {
+        add(keySwitch, new Rectangle(x, KEY_SWITCH_Y,
+                KEY_SWITCH_WIDTH, KEY_SWITCH_HEIGHT));
+    }
+
     public CrtControlPanel() {
-        setBorder(BorderFactory.createEmptyBorder(10, 0, 0, 0));
         setOpaque(false);
-        setPreferredSize(new Dimension(0, 110));
-        setLayout(new GridBagLayout());
+        setLayout(new ScaledLayout(DESIGN_WIDTH, DESIGN_HEIGHT));
 
         // NOTE: The CS switch is called the stopRunSwitch switch
         stopRunSwitch = new ToggleSwitch("If switched down then continually executes instructions. (Press F5/shift+F5)");
         stopRunSwitch.addActionListener(e -> runCallback(onStopRunChange));
-        stopRunSwitch.setPreferredSize(new Dimension(50, 30));
+        add(stopRunSwitch, new Rectangle(STOP_RUN_X, STOP_RUN_Y, STOP_RUN_WIDTH, STOP_RUN_HEIGHT));
 
         // displayControlButtons
         displayControlButton = new InterlockingPushButton("Displays the control on the monitor. (Press Ctrl+Alt+C)");
         displayControlButton.addActionListener(e -> runCallback(onDisplayControlChange));
-        displayControlButton.setPreferredSize(new Dimension(40, 35));  
+        placeDisplayButton(displayControlButton, 85);
 
         displayAccumulatorButton = new InterlockingPushButton("Displays the accumulator on the monitor. (Press Ctrl+Alt+A)");
         displayAccumulatorButton.addActionListener(e -> runCallback(onDisplayAccumulatorChange));
-        displayAccumulatorButton.setPreferredSize(new Dimension(40, 35));  
+        placeDisplayButton(displayAccumulatorButton, 110);
 
         displayStoreButton = new InterlockingPushButton("Displays the store on the monitor. (Press Ctrl+Alt+S)");
         displayStoreButton.addActionListener(e -> runCallback(onDisplayStoreChange));
-        displayStoreButton.setPreferredSize(new Dimension(40, 35));  
+        placeDisplayButton(displayStoreButton, 135);
 
         // Group display buttons to ensure mutual exclusivity
         ButtonGroup displayButtonGroup = new ButtonGroup();
@@ -77,13 +103,9 @@ public class CrtControlPanel extends JPanel {
         displayButtonGroup.add(displayAccumulatorButton);
         displayButtonGroup.add(displayStoreButton);
 
-        // controlSwitchPanel
-        JPanel controlSwitchPanel = new JPanel();
-        controlSwitchPanel.setOpaque(false);
-        controlSwitchPanel.setLayout(new GridBagLayout());
-
         kspSwitch = new KeySwitch("Executes a single instruction. (Press F10)", KeySwitch.KeyColour.GREY);    // KC == KSP
         kspSwitch.addActionListener(e -> runCallback(onKspPressed));
+        placeKeySwitch(kspSwitch, 228);
 
         KeySwitch klcSwitch = new KeySwitch("Clears the current action line of the store.", KeySwitch.KeyColour.WHITE);
         klcSwitch.addMouseListener(new MouseAdapter() {
@@ -97,6 +119,7 @@ public class CrtControlPanel extends JPanel {
                 runCallback(onKlcReleased);
             }
         });
+        placeKeySwitch(klcSwitch, 301);
 
         KeySwitch kscSwitch = new KeySwitch("Clears the store.", KeySwitch.KeyColour.WHITE);
         kscSwitch.addMouseListener(new MouseAdapter() {
@@ -110,6 +133,7 @@ public class CrtControlPanel extends JPanel {
                 runCallback(onKscReleased);
             }
         });
+        placeKeySwitch(kscSwitch, 338);
 
         KeySwitch kacSwitch = new KeySwitch("Clears the accumulator.", KeySwitch.KeyColour.WHITE);
         kacSwitch.addMouseListener(new MouseAdapter() {
@@ -123,6 +147,7 @@ public class CrtControlPanel extends JPanel {
                 runCallback(onKacReleased);
             }
         });
+        placeKeySwitch(kacSwitch, 373);
 
         KeySwitch kccSwitch = new KeySwitch("Clears the CI, PI and Accumulator.", KeySwitch.KeyColour.GREY);
         kccSwitch.addMouseListener(new MouseAdapter() {
@@ -136,97 +161,23 @@ public class CrtControlPanel extends JPanel {
                 runCallback(onKccReleased);
             }
         });
+        placeKeySwitch(kccSwitch, 449);
 
         // These buttons are not connected as per the original hardware
         KeySwitch kbcSwitch = new KeySwitch("Not connected", KeySwitch.KeyColour.GREY);
         KeySwitch kecSwitch = new KeySwitch("Not connected", KeySwitch.KeyColour.GREY);
         KeySwitch kmcSwitch = new KeySwitch("Not connected", KeySwitch.KeyColour.GREY);
+        placeKeySwitch(kbcSwitch, 412);
+        placeKeySwitch(kecSwitch, 482);
+        placeKeySwitch(kmcSwitch, 520);
 
-        if(AppSettings.getInstance().isShowDisconnectedButtons()) {
-            kbcSwitch.setVisible(true);
-            kecSwitch.setVisible(true);
-            kmcSwitch.setVisible(true);
-        } else {
-            kbcSwitch.setVisible(false);
-            kecSwitch.setVisible(false);
-            kmcSwitch.setVisible(false);
-        }
+        boolean showDisconnected = AppSettings.getInstance().isShowDisconnectedButtons();
+        kbcSwitch.setVisible(showDisconnected);
+        kecSwitch.setVisible(showDisconnected);
+        kmcSwitch.setVisible(showDisconnected);
 
-        GridBagConstraints controlSwitchPanelConstraints = new GridBagConstraints();
-        controlSwitchPanelConstraints.anchor = GridBagConstraints.WEST;
-        controlSwitchPanelConstraints.gridx = 0;
-        controlSwitchPanelConstraints.gridy = 0;
-
-        controlSwitchPanelConstraints.insets = new Insets(8, 32, 0, 223);  
-        controlSwitchPanel.add(kspSwitch, controlSwitchPanelConstraints);
-
-        controlSwitchPanelConstraints.insets = new Insets(8, 105, 0, 0);  
-        controlSwitchPanel.add(klcSwitch, controlSwitchPanelConstraints);
-
-        controlSwitchPanelConstraints.insets = new Insets(8, 142, 0, 0);  
-        controlSwitchPanel.add(kscSwitch, controlSwitchPanelConstraints);
-
-        controlSwitchPanelConstraints.insets = new Insets(8, 177, 0, 0);  
-        controlSwitchPanel.add(kacSwitch, controlSwitchPanelConstraints);
-
-        controlSwitchPanelConstraints.insets = new Insets(8, 216, 0, 0);  
-        controlSwitchPanel.add(kbcSwitch, controlSwitchPanelConstraints);
-
-        controlSwitchPanelConstraints.insets = new Insets(8, 253, 0, 0);  
-        controlSwitchPanel.add(kccSwitch, controlSwitchPanelConstraints);
-
-        controlSwitchPanelConstraints.insets = new Insets(8, 286, 0, 0);  
-        controlSwitchPanel.add(kecSwitch, controlSwitchPanelConstraints);
-
-        controlSwitchPanelConstraints.insets = new Insets(8, 324, 0, 0);  
-        controlSwitchPanel.add(kmcSwitch, controlSwitchPanelConstraints);
-
-        // writeErasePanel
-        JPanel writeErasePanel = new JPanel();
-        writeErasePanel.setOpaque(false);
         writeErase = new ToggleSwitch("Selects whether typewriter erases or writes bits.");
-        writeErasePanel.add(writeErase, BorderLayout.CENTER);
-        writeErasePanel.setPreferredSize(new Dimension(50, 37));  
-
-        // set up panel with monitor select switches above and CS switch below
-        GridBagConstraints gridBagConstraints = new GridBagConstraints();
-
-        gridBagConstraints.fill = GridBagConstraints.PAGE_START;
-        gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 0;
-        gridBagConstraints.gridwidth = 1;
-        gridBagConstraints.insets = new Insets(10, 0, 0, 0);
-
-        add(displayControlButton, gridBagConstraints);
-
-        gridBagConstraints.insets = new Insets(10, 50, 0, 0);
-        add(displayAccumulatorButton, gridBagConstraints);
-
-        gridBagConstraints.insets = new Insets(10, 100, 0, 0);
-        add(displayStoreButton, gridBagConstraints);
-
-        gridBagConstraints.gridx = 8;
-        gridBagConstraints.gridy = 0;
-
-        gridBagConstraints.insets = new Insets(-3, 10, 0, 0);  
-        add(writeErasePanel, gridBagConstraints);
-
-        // Position stop/run switch
-        gridBagConstraints.gridx = 0;
-        gridBagConstraints.gridy = 1;
-        gridBagConstraints.gridwidth = 1;  // Reduce width to prevent overlap
-        gridBagConstraints.insets = new Insets(9, 81, 0, 0);  
-        add(stopRunSwitch, gridBagConstraints);
-
-        // Position control switch panel after stop/run switch
-        gridBagConstraints.gridx = 2;  // Start after stop/run switch
-        gridBagConstraints.gridy = 1;
-        gridBagConstraints.gridwidth = 6;
-        gridBagConstraints.gridheight = 2;
-        gridBagConstraints.insets = new Insets(0, 0, 0, 0);  // Restore original insets
-
-        controlSwitchPanel.setPreferredSize(new Dimension(430, 50));
-        add(controlSwitchPanel, gridBagConstraints);
+        add(writeErase, new Rectangle(WRITE_ERASE_X, WRITE_ERASE_Y, WRITE_ERASE_WIDTH, WRITE_ERASE_HEIGHT));
 
         // set up default settings
         displayStoreButton.setSelected(true);    // default to display store on monitor

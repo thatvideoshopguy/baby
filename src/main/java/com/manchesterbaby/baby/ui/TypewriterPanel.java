@@ -7,7 +7,7 @@ import com.manchesterbaby.baby.utils.AppSettings;
 
 import static com.manchesterbaby.baby.utils.CallbackUtils.runCallback;
 
-import java.awt.*;
+import java.awt.Rectangle;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 
@@ -23,25 +23,30 @@ public class TypewriterPanel extends JPanel {
 
     private final PushButton[] numberKeys;
 
+    // Design coordinates of the key grid on the typewriter panel
+    public static final int DESIGN_WIDTH = 700;
+    public static final int DESIGN_HEIGHT = 267;
+    private static final int KEY_ORIGIN_X = 118;
+    private static final int KEY_ORIGIN_Y = 6;
+    private static final int KEY_WIDTH = 58;
+    private static final int KEY_HEIGHT = 51;
+    private static final int KEY_ROWS = 5;
+
     // 8 (across) x 5 (down) grid
     public TypewriterPanel() {
 
-        setLayout(new GridBagLayout());
-        setPreferredSize(new Dimension(0, 270));
+        setLayout(new ScaledLayout(DESIGN_WIDTH, DESIGN_HEIGHT));
         setOpaque(false);
 
         numberKeys = new PushButton[TOTAL_KEYS];
         onKeyPressedCallbacks = new Runnable[TOTAL_KEYS];
         onKeyReleasedCallbacks = new Runnable[TOTAL_KEYS];
 
-        GridBagConstraints gridBagConstraints = new GridBagConstraints();
-        gridBagConstraints.fill = GridBagConstraints.CENTER;
-
         // Initialize and layout keys
-        initialiseNumberKeys(gridBagConstraints);
+        initialiseNumberKeys();
     }
 
-    private void initialiseNumberKeys(GridBagConstraints gridBagConstraints) {
+    private void initialiseNumberKeys() {
         for (int i = 0; i < TOTAL_KEYS; i++) {
 
             // add mouse listeners to keys 0-31
@@ -67,14 +72,12 @@ public class TypewriterPanel extends JPanel {
             }
         }
 
-        // add keys in correct order for display with this layout
-        for (int i = 0; i < 5; i++) {
-            for (int j = 0; j < TOTAL_KEYS; j += 5) {
-                gridBagConstraints.gridx = j / 5;
-                gridBagConstraints.gridy = i;
-                add(numberKeys[i + j], gridBagConstraints);
-            }
-            gridBagConstraints.anchor = GridBagConstraints.LINE_END;
+        // keys are numbered down each column in turn, then left to right
+        for (int i = 0; i < TOTAL_KEYS; i++) {
+            add(numberKeys[i], new Rectangle(
+                    KEY_ORIGIN_X + (i / KEY_ROWS) * KEY_WIDTH,
+                    KEY_ORIGIN_Y + (i % KEY_ROWS) * KEY_HEIGHT,
+                    KEY_WIDTH, KEY_HEIGHT));
         }
     }
 
