@@ -2,18 +2,14 @@ package com.manchesterbaby.baby.ui.components;
 
 import javax.swing.JButton;
 
-import com.manchesterbaby.baby.utils.ImageUtils;
-
-import javax.swing.ImageIcon;
+import javax.swing.Icon;
 import javax.swing.AbstractButton;
 
 public class PushButton extends JButton {
 
-    private static final int DEFAULT_SCALE = 2400;
-
     // Cached default icons
-    private static final ImageIcon DEFAULT_IN_ICON = ImageUtils.loadImageIcon("/images/pushin.gif", DEFAULT_SCALE);
-    private static final ImageIcon DEFAULT_OUT_ICON = ImageUtils.loadImageIcon("/images/pushout.gif", DEFAULT_SCALE);
+    private static final Icon DEFAULT_IN_ICON = PanelIcons.pushIn();
+    private static final Icon DEFAULT_OUT_ICON = PanelIcons.pushOut();
 
     /**
      * A custom JButton that simulates a push switch with custom icons.
@@ -23,6 +19,10 @@ public class PushButton extends JButton {
     public PushButton(String toolTipText) {
         setIcon(DEFAULT_OUT_ICON);
         setPressedIcon(DEFAULT_IN_ICON);
+
+        // GTK enables rollover on buttons, and with no rollover icon set Synth falls back to
+        // another state's icon. The panel has no hover state to show, so turn rollover off.
+        setRolloverEnabled(false);
 
         setFocusPainted(false);
         setBorderPainted(false);

@@ -9,6 +9,7 @@ import java.awt.Component;
 import java.awt.GradientPaint;
 import java.awt.Graphics;
 import java.awt.Graphics2D;
+import java.awt.Image;
 import java.awt.RadialGradientPaint;
 import java.awt.RenderingHints;
 import java.awt.geom.Arc2D;
@@ -16,6 +17,13 @@ import java.awt.geom.Ellipse2D;
 import java.awt.geom.Path2D;
 import java.awt.geom.Point2D;
 import java.awt.geom.Rectangle2D;
+import java.io.IOException;
+import java.io.InputStream;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.function.Consumer;
+
+import javax.imageio.ImageIO;
 
 /**
  * Java2D replacements for the front panel control sprites.
@@ -82,6 +90,15 @@ public final class PanelIcons {
 
     private static double scale = 1;
 
+    // Which artwork the controls draw: the traced vectors, or the original sprites they
+    // were traced from. Every sprite is the same size as the vector that replaced it, so
+    // switching changes only the pixels, never the layout. Vectors by default;
+    // -Dbaby.icons=bitmap starts on the originals and Settings > Original Artwork flips
+    // between them while running, which is the only way to compare them honestly.
+    private static boolean useBitmaps = "bitmap".equalsIgnoreCase(System.getProperty("baby.icons"));
+
+    private static final Map<String, Image> SPRITES = new HashMap<>();
+
     private PanelIcons() {
     }
 
@@ -96,14 +113,55 @@ public final class PanelIcons {
         scale = newScale > 0 ? newScale : 1;
     }
 
+    /** True when the original bitmap sprites are being drawn instead of the vectors. */
+    public static boolean useBitmaps() {
+        return useBitmaps;
+    }
+
+    /**
+     * Chooses between the original sprites and the vector artwork. Repaint to see it.
+     *
+     * @param bitmaps true to draw the original sprites
+     */
+    public static void setUseBitmaps(boolean bitmaps) {
+        useBitmaps = bitmaps;
+    }
+
+    /**
+     * The original sprite of the given file name, or null if it cannot be loaded. A
+     * handful of small files, so they are read once and kept.
+     *
+     * @param name file name under /images
+     * @return the sprite, or null
+     */
+    public static synchronized Image sprite(String name) {
+        if (!SPRITES.containsKey(name)) {
+            SPRITES.put(name, readSprite(name));
+        }
+        return SPRITES.get(name);
+    }
+
+    private static Image readSprite(String name) {
+        try (InputStream in = PanelIcons.class.getResourceAsStream("/images/" + name)) {
+            if (in == null) {
+                System.err.println("Couldn't find sprite: " + name);
+                return null;
+            }
+            return ImageIO.read(in);
+        } catch (IOException e) {
+            System.err.println("Error loading sprite " + name + ": " + e.getMessage());
+            return null;
+        }
+    }
+
     /** Toggle switch with the bat up. Replaces the 32x33 toggle_switch_up.png. */
     public static Icon toggleUp() {
-        return new VectorIcon(32, 33, g -> paintToggle(g, false));
+        return new PanelIcon("toggle_switch_up.png", 32, 33, g -> paintToggle(g, false));
     }
 
     /** Toggle switch with the bat down. Replaces the 32x33 toggle_switch_down.png. */
     public static Icon toggleDown() {
-        return new VectorIcon(32, 33, g -> paintToggle(g, true));
+        return new PanelIcon("toggle_switch_down.png", 32, 33, g -> paintToggle(g, true));
     }
 
     /**
@@ -112,38 +170,38 @@ public final class PanelIcons {
      * draws nothing and exists only to reserve the same 32x32 of layout space.
      */
     public static Icon hole() {
-        return new VectorIcon(32, 32, g -> {
+        return new PanelIcon("hole.gif", 32, 32, g -> {
         });
     }
 
     /** Typewriter push button, released. Replaces the 30x33 pushout.gif. */
     public static Icon pushOut() {
-        return new VectorIcon(30, 33, g -> paintPush(g, 15.0, 17.5, 13.0, false));
+        return new PanelIcon("pushout.gif", 30, 33, g -> paintPush(g, 15.0, 17.5, 13.0, false));
     }
 
     /** Typewriter push button, pressed. Replaces the 30x33 pushin.gif. */
     public static Icon pushIn() {
-        return new VectorIcon(30, 33, g -> paintPush(g, 15.0, 13.5, 13.0, true));
+        return new PanelIcon("pushin.gif", 30, 33, g -> paintPush(g, 15.0, 13.5, 13.0, true));
     }
 
     /** Interlocking monitor-select button, out. Replaces the 25x29 ibuttonout.gif. */
     public static Icon interlockOut() {
-        return new VectorIcon(25, 29, g -> paintPush(g, 11.5, 17.0, 10.5, false));
+        return new PanelIcon("ibuttonout.gif", 25, 29, g -> paintPush(g, 11.5, 17.0, 10.5, false));
     }
 
     /** Interlocking monitor-select button, in. Replaces the 25x29 ibuttonin.gif. */
     public static Icon interlockIn() {
-        return new VectorIcon(25, 29, g -> paintPush(g, 14.5, 14.0, 10.5, true));
+        return new PanelIcon("ibuttonin.gif", 25, 29, g -> paintPush(g, 14.5, 14.0, 10.5, true));
     }
 
     /** Key switch at rest, only the rounded top showing. Replaces greyup.png / whiteup.png. */
     public static Icon keyUp(Color top) {
-        return new VectorIcon(29, 32, g -> paintKey(g, top, false));
+        return new PanelIcon(KEY_IVORY.equals(top) ? "whiteup.png" : "greyup.png", 29, 32, g -> paintKey(g, top, false));
     }
 
     /** Key switch pressed, dropped far enough to expose the shaft. Replaces greydown.png / whitedown.png. */
     public static Icon keyDown(Color top) {
-        return new VectorIcon(29, 32, g -> paintKey(g, top, true));
+        return new PanelIcon(KEY_IVORY.equals(top) ? "whitedown.png" : "greydown.png", 29, 32, g -> paintKey(g, top, true));
     }
 
     // Traced from the original sprite: a 25x24 bushing centred at (16, 15.5), with the bat
@@ -258,17 +316,20 @@ public final class PanelIcons {
                 Math.min(255, (int) (c.getBlue() * factor)));
     }
 
-    @FunctionalInterface
-    private interface Painter {
-        void paint(Graphics2D g);
-    }
-
-    private static final class VectorIcon implements Icon {
+    /**
+     * One control's artwork, at the current panel scale. Holds both renderings of it: the
+     * vector painter and the name of the sprite it was traced from, and draws whichever
+     * {@link #useBitmaps} currently selects. Both are the same design size, so the icon
+     * measures the same either way and nothing around it moves when the choice changes.
+     */
+    private static final class PanelIcon implements Icon {
+        private final String sprite;
         private final int width;
         private final int height;
-        private final Painter painter;
+        private final Consumer<Graphics2D> painter;
 
-        VectorIcon(int width, int height, Painter painter) {
+        PanelIcon(String sprite, int width, int height, Consumer<Graphics2D> painter) {
+            this.sprite = sprite;
             this.width = width;
             this.height = height;
             this.painter = painter;
@@ -286,12 +347,21 @@ public final class PanelIcons {
 
         @Override
         public void paintIcon(Component component, Graphics graphics, int x, int y) {
+            Image bitmap = useBitmaps ? sprite(sprite) : null;
             Graphics2D g = (Graphics2D) graphics.create();
             try {
-                g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-                g.translate(x, y);
-                g.scale(scale, scale);
-                painter.paint(g);
+                if (bitmap != null) {
+                    // the originals are 25-33px sprites, so enlarging them is interpolation
+                    // either way; bilinear at least keeps it soft rather than blocky
+                    g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                            RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                    g.drawImage(bitmap, x, y, getIconWidth(), getIconHeight(), component);
+                } else {
+                    g.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    g.translate(x, y);
+                    g.scale(scale, scale);
+                    painter.accept(g);
+                }
             } finally {
                 g.dispose();
             }

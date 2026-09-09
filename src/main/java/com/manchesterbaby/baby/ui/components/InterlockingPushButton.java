@@ -1,22 +1,19 @@
 package com.manchesterbaby.baby.ui.components;
 
 import javax.swing.AbstractButton;
-import javax.swing.ImageIcon;
+import javax.swing.Icon;
 import javax.swing.JRadioButton;
 import javax.swing.SwingConstants;
-
-import com.manchesterbaby.baby.utils.ImageUtils;
 
 import java.awt.Insets;
 
 public class InterlockingPushButton extends JRadioButton {
 
     private static final Insets DEFAULT_MARGIN = new Insets(3, 3, 3, 3);
-    private static final int DEFAULT_SCALE = 2400;
 
     // Cached default icons
-    private static final ImageIcon DEFAULT_IN_ICON = ImageUtils.loadImageIcon("/images/ibuttonin.gif", DEFAULT_SCALE);
-    private static final ImageIcon DEFAULT_OUT_ICON = ImageUtils.loadImageIcon("/images/ibuttonout.gif", DEFAULT_SCALE);
+    private static final Icon DEFAULT_IN_ICON = PanelIcons.interlockIn();
+    private static final Icon DEFAULT_OUT_ICON = PanelIcons.interlockOut();
 
     /**
      * A custom JRadioButton that simulates an interlocking push button with custom icons.
@@ -26,6 +23,11 @@ public class InterlockingPushButton extends JRadioButton {
     public InterlockingPushButton(String toolTipText) {
         setIcon(DEFAULT_OUT_ICON);
         setSelectedIcon(DEFAULT_IN_ICON);
+
+        // GTK enables rollover on buttons, and with no rollover icon set Synth falls back to
+        // the selected icon: hovering an unselected control paints it as if it were on. The
+        // panel has no hover state to show anyway, so turn rollover off.
+        setRolloverEnabled(false);
 
         setFocusPainted(false);
         setBorderPainted(false);

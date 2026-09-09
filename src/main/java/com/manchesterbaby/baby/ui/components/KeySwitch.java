@@ -1,43 +1,37 @@
 package com.manchesterbaby.baby.ui.components;
 
 import javax.swing.JButton;
-import javax.swing.ImageIcon;
+import javax.swing.Icon;
 import javax.swing.AbstractButton;
 import javax.swing.SwingConstants;
 
-import com.manchesterbaby.baby.utils.ImageUtils;
-
+import java.awt.Color;
 import java.awt.Insets;
-import java.awt.Image;
 
 public class KeySwitch extends JButton {
 
     private static final Insets DEFAULT_MARGIN = new Insets(3, 3, 3, 3);
-    private static final int DEFAULT_SCALE = 2400;
 
     /**
      * Enum for the colours of the KeySwitch.
      */
     public enum KeyColour {
-        GREY("/images/greyup.png", "/images/greydown.png"),
-        WHITE("/images/whiteup.png", "/images/whitedown.png");
+        GREY(PanelIcons.KEY_GREY),
+        WHITE(PanelIcons.KEY_IVORY);
 
-        private final Image upIcon;
-        private final Image downIcon;
+        private final Icon upIcon;
+        private final Icon downIcon;
 
-        KeyColour(String upIconPath, String downIconPath) {
-            this.upIcon = ImageUtils.loadImage(upIconPath, DEFAULT_SCALE);
-            this.downIcon = ImageUtils.loadImage(downIconPath, DEFAULT_SCALE);
-            if (this.upIcon == null || this.downIcon == null) {
-                throw new IllegalArgumentException("Image could not be loaded: " + upIconPath + " or " + downIconPath);
-            }
+        KeyColour(Color top) {
+            this.upIcon = PanelIcons.keyUp(top);
+            this.downIcon = PanelIcons.keyDown(top);
         }
 
-        public Image getUpIcon() {
+        public Icon getUpIcon() {
             return upIcon;
         }
 
-        public Image getDownIcon() {
+        public Icon getDownIcon() {
             return downIcon;
         }
     }
@@ -53,8 +47,12 @@ public class KeySwitch extends JButton {
             throw new IllegalArgumentException("KeyColour cannot be null");
         }
 
-        setIcon(new ImageIcon(keyColour.getUpIcon()));
-        setPressedIcon(new ImageIcon(keyColour.getDownIcon()));
+        setIcon(keyColour.getUpIcon());
+        setPressedIcon(keyColour.getDownIcon());
+
+        // GTK enables rollover on buttons, and with no rollover icon set Synth falls back to
+        // another state's icon. The panel has no hover state to show, so turn rollover off.
+        setRolloverEnabled(false);
 
         setFocusPainted(false);
         setBorderPainted(false);
