@@ -12,7 +12,16 @@
     </properties>
 
     <build>
+        <finalName>baby</finalName>
+
         <plugins>
+            <!-- Maven Surefire Plugin. Maven's default is too old to run JUnit 5 tests,
+                 which silently reports "Tests run: 0" instead of failing. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>3.5.4</version>
+            </plugin>
             <!-- Maven Compiler Plugin -->
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -20,9 +29,16 @@
                 <version>3.11.0</version>
                 <configuration>
                     <!-- Must use Java 8 for CheerPJ compatibility when running in a browser, as of January 2025. -->
-                    <!-- Note: The <release> flag is not available in Java 8. Use <source>1.8</source> and <target>1.8</target> instead. -->
-                    <source>1.8</source>
-                    <target>1.8</target>
+                    <!-- <release> compiles against the real Java 8 API, so a Java 9+ call is a
+                         compile error here rather than a crash in the browser. It needs JDK 9+
+                         to build, which is what the README asks for; see Java9Plus for how the
+                         few Java 9+ features that are needed are reached by reflection. -->
+                    <release>8</release>
+                    <compilerArgs>
+                        <!-- Opt in by name: javac errors on an unknown -Xlint category, so "all"
+                             minus -this-escape (JDK 21+) would break a JDK 17 build.  -->
+                        <arg>-Xlint:-options,deprecation,unchecked,rawtypes,cast,fallthrough,finally,overrides</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
 
@@ -33,6 +49,7 @@
                 <version>3.3.1</version>
                 <configuration>
                     <encoding>${project.build.sourceEncoding}</encoding>
+                    <propertiesEncoding>${project.build.sourceEncoding}</propertiesEncoding>
                 </configuration>
             </plugin>
 
@@ -46,7 +63,12 @@
                         <descriptorRef>jar-with-dependencies</descriptorRef>
                     </descriptorRefs>
                     <appendAssemblyId>false</appendAssemblyId>
-                    <finalName>baby</finalName>
+                    <!-- The deliverable is the file in target/, not a Maven artifact: the
+                         documented builds are "mvn clean package" and "mvn clean verify -P ...",
+                         and the packaging profiles read target/baby.jar off disk. Without
+                         this the plugin makes the fat jar the project's main artifact and
+                         warns that doing so is non-deterministic. -->
+                    <attach>false</attach>
                     <archive>
                         <manifest>
                             <mainClass>com.manchesterbaby.baby.core.Baby</mainClass>
@@ -73,9 +95,12 @@
             <plugin>
                 <artifactId>maven-jar-plugin</artifactId>
                 <version>3.3.0</version>
-                <configuration>
-                    <finalName>baby</finalName>
-                </configuration>
+                <executions>
+                    <execution>
+                        <id>default-jar</id>
+                        <phase>none</phase>
+                    </execution>
+                </executions>
             </plugin>
         </plugins>
 
@@ -103,20 +128,10 @@
         </resources>
     </build>
 
-    <repositories>
-        <repository>
-            <id>adoptium</id>
-            <url>https://packages.adoptium.net/artifactory/jdk8u-windows-x64-jre/</url>
-        </repository>
-    </repositories>
-
     <profiles>
         <!-- Profile for creating Windows distribution with bundled JRE -->
         <profile>
             <id>windows-dist</id>
-            <properties>
-                <jre.version>11.0.22+7</jre.version>
-            </properties>
             <build>
                 <plugins>
                     <!-- Download and unpack JRE -->
@@ -293,7 +308,7 @@
                                         <mkdir dir="${project.build.directory}/jre-download"/>
                                         <get src="https://github.com/adoptium/temurin11-binaries/releases/download/jdk-11.0.22%2B7/OpenJDK11U-jre_aarch64_mac_hotspot_11.0.22_7.tar.gz"
                                              dest="${project.build.directory}/jre-download/jre.tar.gz"
-                                             verbose="true"/>
+                                             skipexisting="true"/>
                                         <untar src="${project.build.directory}/jre-download/jre.tar.gz"
                                                dest="${project.basedir}/jre"
                                                compression="gzip">
@@ -333,7 +348,7 @@
                                     <goal>exec</goal>
                                 </goals>
                                 <configuration>
-                                    <executable>/usr/bin/jpackage</executable>
+                                    <executable>${java.home}/bin/jpackage</executable>
                                     <arguments>
                                         <argument>--name</argument>
                                         <argument>Manchester Baby</argument>
@@ -365,7 +380,7 @@
                                     <goal>exec</goal>
                                 </goals>
                                 <configuration>
-                                    <executable>/usr/bin/jpackage</executable>
+                                    <executable>${java.home}/bin/jpackage</executable>
                                     <arguments>
                                         <argument>--name</argument>
                                         <argument>Manchester Baby</argument>
