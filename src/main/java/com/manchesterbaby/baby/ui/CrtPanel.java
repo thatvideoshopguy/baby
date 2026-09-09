@@ -11,12 +11,13 @@ import java.awt.event.MouseMotionListener;
 import com.manchesterbaby.baby.core.Control;
 import com.manchesterbaby.baby.core.Store;
 import com.manchesterbaby.baby.manager.AnimationManager;
-import com.manchesterbaby.baby.utils.ImageUtils;
+import com.manchesterbaby.baby.ui.components.PanelIcons;
 
 import java.awt.Graphics;
 import java.awt.Graphics2D;
-import java.awt.image.BufferedImage;
 import java.awt.Image;
+import java.awt.image.BufferedImage;
+import java.awt.Color;
 
 public class CrtPanel extends JPanel {
 
@@ -35,18 +36,26 @@ public class CrtPanel extends JPanel {
 
     public static final int DEFAULT_BIT_LENGTH = 6; // The length of a bit as appears on the crt
     public static final int DEFAULT_SPACING = 3;
-    private static final int DEFAULT_SCALE = 2400;
+    // A bit is drawn as a mark on the CRT: a short dot for 0, a long dash for 1, the
+    // Williams tube convention. Geometry and palette are taken from the 7x3 bit GIFs
+    // these replace; drawing them as fills instead keeps the raster sharp when scaled.
+    private static final int BIT_TILE_WIDTH = 7;
+    private static final int BIT_TILE_HEIGHT = 3;
+    private static final int DOT_WIDTH = 1;
+    private static final int DASH_WIDTH = 4;
 
-    // NOTE: Cached images are all 7x3 GIFs
-    private static final Image BIT_ONE_IMAGE = ImageUtils.loadImage("/images/bit1.gif", DEFAULT_SCALE);
-    private static final Image BIT_ZERO_IMAGE = ImageUtils.loadImage("/images/bit0.gif", DEFAULT_SCALE);
-    private static final Image BIT_ONE_BRIGHT_IMAGE = ImageUtils.loadImage("/images/bit1bright.gif", DEFAULT_SCALE);
-    private static final Image BIT_ZERO_BRIGHT_IMAGE = ImageUtils.loadImage("/images/bit0bright.gif", DEFAULT_SCALE);
+    private static final Color PHOSPHOR_UNLIT = new Color(0x1E1606);
+    private static final Color PHOSPHOR_GLOW = new Color(0x006600);
+    private static final Color PHOSPHOR_CORE = new Color(0x82FF82);
+    private static final Color PHOSPHOR_GLOW_BRIGHT = new Color(0x00CC00);
+    private static final Color PHOSPHOR_CORE_BRIGHT = new Color(0xFFFFFF);
 
     private DisplayType currentDisplay = DisplayType.STORE; // The current display type
     private final boolean renderAccurately = true; // Whether to render the Control and Accumulator accurately
-    private final BufferedImage bufferedImage = new BufferedImage(DEFAULT_CRT_WIDTH, DEFAULT_CRT_HEIGHT, BufferedImage.TYPE_INT_ARGB); // The image to be drawn
-    private final Graphics2D big = bufferedImage.createGraphics();
+    private BufferedImage bufferedImage; // The image to be drawn
+    private Graphics2D big;
+    private double bufferScale;
+    private boolean bufferBitmaps;
     private int actionLine = 0;
 
     private final Store store;
@@ -74,8 +83,8 @@ public class CrtPanel extends JPanel {
 
                 if (CLICK_ON_CRT_TO_MODIFY)
                 {
-                    int x = e.getX();
-                    int y = e.getY();
+                    int x = toLogicalX(e.getX());
+                    int y = toLogicalY(e.getY());
                     int button = e.getButton();
 
                     // Check if within horizontal bounds of the drawn line
@@ -121,8 +130,8 @@ public class CrtPanel extends JPanel {
         addMouseMotionListener(new MouseMotionAdapter() {
             @Override
             public void mouseMoved(MouseEvent e) {
-                int x = e.getX();
-                int y = e.getY();
+                int x = toLogicalX(e.getX());
+                int y = toLogicalY(e.getY());
                 
                 // Check if within horizontal bounds of the drawn line
                 // Lines start at DEFAULT_RASTER_OFFSET_X + DEFAULT_SPACING
@@ -159,8 +168,49 @@ public class CrtPanel extends JPanel {
             }
         });
 
-        render();
+        setBufferScale(1.0);
         repaint();
+    }
+
+    /**
+     * (Re)creates the backing buffer so that one buffer pixel maps to one device pixel at
+     * the given scale, then redraws everything into it. Without this the raster would be a
+     * fixed 400x290 bitmap stretched by the UI scale, which is exactly the blur the vector
+     * bit drawing above is meant to avoid.
+     *
+     * @param scale the device scale to render at
+     */
+    private synchronized void setBufferScale(double scale) {
+        bufferScale = scale;
+        bufferBitmaps = PanelIcons.useBitmaps();
+        bufferedImage = new BufferedImage(
+                (int) Math.ceil(DEFAULT_CRT_WIDTH * scale),
+                (int) Math.ceil(DEFAULT_CRT_HEIGHT * scale),
+                BufferedImage.TYPE_INT_ARGB);
+        big = bufferedImage.createGraphics();
+        big.scale(scale, scale);
+
+        for (int lineNumber = 0; lineNumber < 32; lineNumber++)
+            store.isLineAltered[lineNumber] = true;
+
+        render();
+    }
+
+    /**
+     * The scale the CRT is currently drawn at, relative to its own coordinate space.
+     */
+    private double displayScale() {
+        return getWidth() > 0 ? getWidth() / (double) DEFAULT_CRT_WIDTH : 1;
+    }
+
+    // Converts a mouse position on the panel back into the CRT's own coordinates
+    private int toLogicalX(int x) {
+        return (int) (x / displayScale());
+    }
+
+    // Package private so the round trip can be checked without dispatching mouse events.
+    int toLogicalY(int y) {
+        return (int) (y / displayScale());
     }
 
     /**
@@ -208,7 +258,16 @@ public class CrtPanel extends JPanel {
         super.paintComponent(graphicsIn);
 
         Graphics2D graphics2D = (Graphics2D) graphicsIn;
-        graphics2D.drawImage(bufferedImage, 0, 0, this);
+
+        // render the buffer at the resolution it will actually be shown at, taking in both
+        // the size the panel has been laid out to and the display's own scaling
+        double scale = graphics2D.getTransform().getScaleX() * displayScale();
+        if (scale > 0 && (Math.abs(scale - bufferScale) > 0.001
+                || bufferBitmaps != PanelIcons.useBitmaps())) {
+            setBufferScale(scale);
+        }
+
+        graphics2D.drawImage(bufferedImage, 0, 0, getWidth(), getHeight(), this);
     }
 
     /**
@@ -218,9 +277,13 @@ public class CrtPanel extends JPanel {
         switch (currentDisplay) {
             // only redraw the store lines that have changed
             case STORE:
-                for (int lineNumber = 0; lineNumber < 31; lineNumber++) {
+                double scale = displayScale();
+                for (int lineNumber = 0; lineNumber < 32; lineNumber++) {
                     if (store.isLineAltered[lineNumber]) {
-                        repaint(0, DEFAULT_SPACING + lineNumber * DEFAULT_BIT_LENGTH, DEFAULT_CRT_WIDTH, DEFAULT_SPACING + ((lineNumber + 1) * DEFAULT_BIT_LENGTH));
+                        int y = DEFAULT_RASTER_OFFSET_Y + DEFAULT_SPACING + lineNumber * DEFAULT_BIT_LENGTH;
+                        repaint((int) (DEFAULT_RASTER_OFFSET_X * scale), (int) (y * scale),
+                                (int) Math.ceil(32 * DEFAULT_BIT_LENGTH * scale) + 2,
+                                (int) Math.ceil(BIT_TILE_HEIGHT * scale) + 2);
                         store.isLineAltered[lineNumber] = false;
                     }
                 }
@@ -290,7 +353,7 @@ public class CrtPanel extends JPanel {
             if (store.isLineAltered[lineNumber]) {
                 // if redrawing the action line then draw it brighter
                 if (actionLine == lineNumber) {
-                    drawActionDataAtLine(store.getLine(lineNumber), lineNumber, big);
+                    drawDataAtLine(store.getLine(lineNumber), lineNumber, big, true);
                 }
                 // otherwise draw a normal line
                 else {
@@ -337,26 +400,49 @@ public class CrtPanel extends JPanel {
 
     // draw the given data for a line at the specified position on the specified graphics context
     private void drawDataAtLine(int data, int line, Graphics2D graphicsContext) {
+        drawDataAtLine(data, line, graphicsContext, false);
+    }
+
+    private void drawDataAtLine(int data, int line, Graphics2D graphicsContext, boolean bright) {
+        int y = DEFAULT_RASTER_OFFSET_Y + DEFAULT_SPACING + line * DEFAULT_BIT_LENGTH;
         for (int bitNumber = 31; bitNumber >= 0; bitNumber--) {
-            // if bit set then
-            if (((data >> bitNumber) & 1) == 1) {
-                graphicsContext.drawImage(BIT_ONE_IMAGE, DEFAULT_RASTER_OFFSET_X + DEFAULT_SPACING + bitNumber * DEFAULT_BIT_LENGTH, DEFAULT_RASTER_OFFSET_Y + DEFAULT_SPACING + line * DEFAULT_BIT_LENGTH, null);
-            } else {
-                graphicsContext.drawImage(BIT_ZERO_IMAGE, DEFAULT_RASTER_OFFSET_X + DEFAULT_SPACING + bitNumber * DEFAULT_BIT_LENGTH, DEFAULT_RASTER_OFFSET_Y + DEFAULT_SPACING + line * DEFAULT_BIT_LENGTH, null);
-            }
+            int x = DEFAULT_RASTER_OFFSET_X + DEFAULT_SPACING + bitNumber * DEFAULT_BIT_LENGTH;
+            drawBit(graphicsContext, x, y, ((data >> bitNumber) & 1) == 1, bright);
         }
     }
 
-    // same as drawDataAtLine() but for the brighter action line
-    private void drawActionDataAtLine(int data, int line, Graphics2D graphicsContext) {
-        for (int bitNumber = 31; bitNumber >= 0; bitNumber--) {
-            // if bit set then
-            if (((data >> bitNumber) & 1) == 1) {
-                graphicsContext.drawImage(BIT_ONE_BRIGHT_IMAGE, DEFAULT_RASTER_OFFSET_X + DEFAULT_SPACING + bitNumber * DEFAULT_BIT_LENGTH, DEFAULT_RASTER_OFFSET_Y + DEFAULT_SPACING + line * DEFAULT_BIT_LENGTH, null);
-            } else {
-                graphicsContext.drawImage(BIT_ZERO_BRIGHT_IMAGE, DEFAULT_RASTER_OFFSET_X + DEFAULT_SPACING + bitNumber * DEFAULT_BIT_LENGTH, DEFAULT_RASTER_OFFSET_Y + DEFAULT_SPACING + line * DEFAULT_BIT_LENGTH, null);
-            }
+    /**
+     * Draws one bit of the raster: an unlit tile carrying a glowing mark, short for 0 and
+     * long for 1. Package private so it can be checked without standing up a whole panel.
+     *
+     * @param graphicsContext the context to draw on
+     * @param x               left edge of the bit's tile
+     * @param y               top edge of the bit's tile
+     * @param one             true to draw a dash (1), false to draw a dot (0)
+     * @param bright          true for the action line, which is drawn more intensely
+     */
+    static void drawBit(Graphics2D graphicsContext, int x, int y, boolean one, boolean bright) {
+        // the original 7x3 GIFs carry their own unlit background, so they replace the
+        // whole tile rather than being drawn over it
+        Image sprite = PanelIcons.useBitmaps()
+                ? PanelIcons.sprite("bit" + (one ? "1" : "0") + (bright ? "bright" : "") + ".gif")
+                : null;
+        if (sprite != null) {
+            graphicsContext.drawImage(sprite, x, y, BIT_TILE_WIDTH, BIT_TILE_HEIGHT, null);
+            return;
         }
+
+        graphicsContext.setColor(PHOSPHOR_UNLIT);
+        graphicsContext.fillRect(x, y, BIT_TILE_WIDTH, BIT_TILE_HEIGHT);
+
+        int coreWidth = one ? DASH_WIDTH : DOT_WIDTH;
+
+        // the mark's glow bleeds one pixel around its core
+        graphicsContext.setColor(bright ? PHOSPHOR_GLOW_BRIGHT : PHOSPHOR_GLOW);
+        graphicsContext.fillRect(x, y, coreWidth + 2, BIT_TILE_HEIGHT);
+
+        graphicsContext.setColor(bright ? PHOSPHOR_CORE_BRIGHT : PHOSPHOR_CORE);
+        graphicsContext.fillRect(x + 1, y + 1, coreWidth, 1);
     }
 
     public DisplayType getCurrentDisplay() {
