@@ -56,6 +56,15 @@ On Windows, you can install these dependencies using [Chocolatey](https://chocol
 choco install openjdk maven caddy
 ```
 
+On Debian/Ubuntu Linux, you can install these dependencies using apt:
+
+```bash
+sudo apt install openjdk-21-jdk maven caddy
+```
+
+(Older releases may only offer `openjdk-17-jdk`; either is fine. On Debian 12 and
+earlier, `caddy` comes from backports or [Caddy's own repository](https://caddyserver.com/docs/install#debian-ubuntu-raspbian).)
+
 ## Setup
 
 1.	**Clone the Repository**: Clone the project to your local machine
