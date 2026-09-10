@@ -27,7 +27,10 @@ public class Control
 
 	// speed details here so can be synchronized with a get set method
 	private int cycleCount = 0;
-	private int instructionsPerRefresh = 2;
+	// 14 instructions on each of Animator's 50 frames a second is the ~700 instructions a
+	// second the real Baby ran at, so the simulation starts at about the right speed and
+	// SimulationSpeedTracker.regulateSpeed() only has to trim it, rather than ramp up to it
+	private int instructionsPerRefresh = 14;
 
 	public StaticisorPanelController staticisorPanelController;
 	public CrtControlPanelController crtControlPanelController;

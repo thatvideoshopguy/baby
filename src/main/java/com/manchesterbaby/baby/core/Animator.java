@@ -60,7 +60,10 @@ public class Animator extends Thread {
     @Override
     public void run() {
 
-        final long DEFAULT_FRAME_TIME = 10_000_000L; // 10 ms in nanoseconds
+        // 20 ms in nanoseconds, i.e. 50 frames a second. The Baby ran at about 700
+        // instructions a second and SimulationSpeedTracker holds the simulation to that
+        // however often we redraw, so a faster frame rate only buys extra repaints.
+        final long DEFAULT_FRAME_TIME = 20_000_000L;
 
         setPriority(Thread.NORM_PRIORITY + 1); // Increment thread priority if needed
 
