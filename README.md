@@ -12,7 +12,7 @@ If you just want to quickly run the simulator in a browser, visit [manchesterbab
 
 You can also download the [latest release](https://github.com/davidpsharp/baby/releases) and run it offline as a desktop application. It is available as a standalone Windows or macOS app with an in-built [Java Runtime](https://adoptium.net/) so there is nothing for you to configure.
 
-If you are on another platform such as Linux, you can download the Java .jar file which requires an existing Java Runtime to be installed, version 8 or later.
+If you are on another platform such as Linux, you can download the Java .jar file which requires an existing Java Runtime to be installed, version 11 or later.
 
 Or you can [build the simulator](#table-of-contents-for-building-the-simulator) yourself from source code.
 

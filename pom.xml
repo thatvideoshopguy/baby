@@ -28,12 +28,12 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>3.11.0</version>
                 <configuration>
-                    <!-- Must use Java 8 for CheerPJ compatibility when running in a browser, as of January 2025. -->
-                    <!-- <release> compiles against the real Java 8 API, so a Java 9+ call is a
-                         compile error here rather than a crash in the browser. It needs JDK 9+
-                         to build, which is what the README asks for; see Java9Plus for how the
-                         few Java 9+ features that are needed are reached by reflection. -->
-                    <release>8</release>
+                    <!-- Java 11 is the runtime CheerpJ 4.3 is most solid on, so the browser
+                         build sets version:11 in src/test/online_test/index.html to match.
+                         <release> compiles against the real Java 11 API, so a call to anything
+                         newer is a compile error here rather than a crash in the browser or on
+                         the bundled JREs in the windows-dist/macos-dist profiles. -->
+                    <release>11</release>
                     <compilerArgs>
                         <!-- Opt in by name: javac errors on an unknown -Xlint category, so "all"
                              minus -this-escape (JDK 21+) would break a JDK 17 build.  -->
