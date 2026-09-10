@@ -277,15 +277,24 @@ public class CrtPanel extends JPanel {
         switch (currentDisplay) {
             // only redraw the store lines that have changed
             case STORE:
-                double scale = displayScale();
+                // one repaint spanning the altered lines, rather than one per line: Swing
+                // would union them anyway, and in the browser each one costs a canvas op
+                int firstAltered = -1;
+                int lastAltered = -1;
                 for (int lineNumber = 0; lineNumber < 32; lineNumber++) {
                     if (store.isLineAltered[lineNumber]) {
-                        int y = DEFAULT_RASTER_OFFSET_Y + DEFAULT_SPACING + lineNumber * DEFAULT_BIT_LENGTH;
-                        repaint((int) (DEFAULT_RASTER_OFFSET_X * scale), (int) (y * scale),
-                                (int) Math.ceil(32 * DEFAULT_BIT_LENGTH * scale) + 2,
-                                (int) Math.ceil(BIT_TILE_HEIGHT * scale) + 2);
+                        if (firstAltered < 0) firstAltered = lineNumber;
+                        lastAltered = lineNumber;
                         store.isLineAltered[lineNumber] = false;
                     }
+                }
+                if (firstAltered >= 0) {
+                    double scale = displayScale();
+                    int top = DEFAULT_RASTER_OFFSET_Y + DEFAULT_SPACING + firstAltered * DEFAULT_BIT_LENGTH;
+                    int height = (lastAltered - firstAltered) * DEFAULT_BIT_LENGTH + BIT_TILE_HEIGHT;
+                    repaint((int) (DEFAULT_RASTER_OFFSET_X * scale), (int) (top * scale),
+                            (int) Math.ceil(32 * DEFAULT_BIT_LENGTH * scale) + 2,
+                            (int) Math.ceil(height * scale) + 2);
                 }
                 break;
             // redraw top line only
