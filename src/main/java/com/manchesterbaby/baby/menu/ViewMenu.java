@@ -56,7 +56,6 @@ public class ViewMenu {
         JMenuItem viewDisassemblerWindow = new JMenuItem("Disassembler");
         JCheckBoxMenuItem viewDisassemblerTab = new JCheckBoxMenuItem("Disassembler Tab");
         JMenuItem viewDebugPanel = new JCheckBoxMenuItem("Debug");
-        JMenuItem viewRefreshView = new JMenuItem("Refresh View");
 
         // Add action listeners for each item
         viewStore.addActionListener(e -> crtPanelController.setCrtDisplay(DisplayType.STORE));
@@ -81,7 +80,6 @@ public class ViewMenu {
             viewDisassemblerWindow.addActionListener(new DisplayDisassemblerWindow(disassembler));
         }
         viewDebugPanel.addActionListener(new DisplayDebugPanel(debugPanel));
-        viewRefreshView.addActionListener(e -> parentFrame.repaint());
 
         // Add mnemonics (keyboard shortcuts) for macOS, Windows, and Linux
         viewMenu.setMnemonic(KeyEvent.VK_V); // Alt + V
@@ -106,13 +104,6 @@ public class ViewMenu {
         viewMenu.addSeparator();
         viewMenu.add(viewDebugPanel);
         
-        // this feature is only needed on CheerpJ when zooming certain browsers it doesn't redraw properly
-        // doesn't seem to work reliably though to address redraw issue
-        if(CheerpJUtils.onCheerpj()) {
-            viewRefreshView.setAccelerator(KeyStroke.getKeyStroke(KeyEvent.VK_F1, 0)); // F1 // TODO: find a shortcut that works on all platforms esp chrome windows
-            viewMenu.add(viewRefreshView);
-        }
-
         viewDebugPanel.setSelected(AppSettings.getInstance().isShowDebugPanel());
 
         // Add zoom submenu if not running in browser and not macOS
