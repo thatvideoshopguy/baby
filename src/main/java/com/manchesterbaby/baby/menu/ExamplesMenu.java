@@ -31,7 +31,6 @@ import com.manchesterbaby.baby.controller.CrtPanelController;
 import com.manchesterbaby.baby.core.Baby;
 import com.manchesterbaby.baby.core.Store;
 import com.manchesterbaby.baby.io.LoadExample;
-import com.manchesterbaby.baby.utils.CheerpJUtils;
 
 public class ExamplesMenu {
 
@@ -70,11 +69,18 @@ public class ExamplesMenu {
     
             try {
 
-                // Add built-in examples from resources
-                if(CheerpJUtils.onCheerpj())
-                    createMenuFromJar(exampleMenu, EXAMPLES_FOLDER);    
-                else
+                // Add built-in examples from resources. Walking the jar as a filesystem is
+                // the tidier way and works everywhere except CheerpJ, which had no "jar"
+                // filesystem provider, so fall back to reading the jar's entries directly if
+                // it fails rather than deciding up front which platform we are on.
+                try {
                     createMenuFromResource(exampleMenu, EXAMPLES_FOLDER);
+                } catch (Exception e) {
+                    System.out.println("Could not walk the jar (" + e + "), reading its entries instead");
+                    // nothing else has been added to the menu yet, so start it over
+                    exampleMenu.removeAll();
+                    createMenuFromJar(exampleMenu, EXAMPLES_FOLDER);
+                }
     
                 // Try to add programs from external folder
                 Path jarPath = getJarPath();
@@ -195,8 +201,8 @@ public class ExamplesMenu {
 
     /**
      * Start scanning folder within the simulator's JAR/target folder for built-in example programs
-     * This works great when running the JAR or in Debugger but not on CheerpJ as doesn't support newFileSystem()
-     * (Errors with ProviderNotFoundException: Provider "jar" not found) so have to use createMenuFromJar() on CheerpJ
+     * This works great when running the JAR or in Debugger. CheerpJ used to have no "jar" filesystem
+     * provider (ProviderNotFoundException), so the caller falls back to createMenuFromJar() if this throws
      * @param rootMenu
      * @param resourcePath
      * @return
@@ -277,7 +283,7 @@ public class ExamplesMenu {
 
     /**
      * Create menu items from a zip file's contents
-     * Created as cheerpj doesn't seem to like newFileSystem() at all so scanning directly
+     * Scans the zip directly, as CheerpJ had no "jar" filesystem provider for newFileSystem()
      * @param parentMenu The menu to add items to
      * @param zipPath Path to the zip file
      * @throws IOException If there's an error reading the zip file
