@@ -67,10 +67,13 @@ public class Baby extends JFrame {
                 setIconImage(icon);
                 
                 // Set macOS dock icon
-                Java9Plus.setDockIcon(icon);
-                
+                if (Taskbar.isTaskbarSupported()
+                        && Taskbar.getTaskbar().isSupported(Taskbar.Feature.ICON_IMAGE)) {
+                    Taskbar.getTaskbar().setIconImage(icon);
+                }
+
             } catch (Exception e) {
-                // Could not load application icon, only works on JRE 9 and later.
+                // Could not load application icon or set the dock icon.
             }
 
             currentDir = System.getProperty("user.home");

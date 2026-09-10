@@ -60,32 +60,11 @@ public class MiscUtils {
 
     /**
      * Gets the version of the currently running Java Runtime Environment.
-     * This will return the full version string from Runtime.version() for Java 9+,
-     * or System.getProperty("java.version") for Java 8 and below.
      * 
      * @return The version string of the current JRE
      */
     public static String getJREversion() {
-        // First try Runtime.version() (Java 9+)
-        try {
-            Object version = Runtime.class.getMethod("version").invoke(null);
-            return version.toString();
-        } catch (Exception e) {
-            // Fallback to System property (Java 8 and below)
-            return System.getProperty("java.version");
-        }
-    }
-
-    // returns true if java 9 or later (which support scaleUI param)
-    public static boolean jreCanScaleUI() {
-        try {
-            // use reflection to call a java 9 and later method
-            Object version = Runtime.class.getMethod("version").invoke(null);
-            return true;
-        } catch (Exception e) {
-            // Fallback to System property (Java 8 and below)
-            return false;
-        }
+        return Runtime.version().toString();
     }
 
     /**

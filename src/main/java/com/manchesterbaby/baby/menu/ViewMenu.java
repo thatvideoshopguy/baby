@@ -17,18 +17,14 @@ import com.manchesterbaby.baby.ui.display.DisplayDebugPanel;
 import com.manchesterbaby.baby.ui.display.DisplayDisassemblerWindow;
 import com.manchesterbaby.baby.utils.AppSettings;
 import com.manchesterbaby.baby.utils.CheerpJUtils;
-import com.manchesterbaby.baby.utils.Java9Plus;
-import com.manchesterbaby.baby.utils.MiscUtils;
 
 import javax.swing.JFrame;
 import javax.swing.JPanel;
 
 import java.awt.event.KeyEvent;
 import java.io.File;
-import java.lang.reflect.Method;
 import java.net.URISyntaxException;
 import java.net.URL;
-import java.util.Optional;
 
 public class ViewMenu {
 
@@ -141,61 +137,51 @@ public class ViewMenu {
                 zoomItem.addActionListener(e -> {
                     AppSettings.getInstance().setUiScaleSetting(level);
 
-                    if(MiscUtils.jreCanScaleUI())
-                    {
-                        int choice = JOptionPane.showConfirmDialog(
-                            _parentFrame,
-                            "Zoom will take effect when the simulator is next started. Restart it now?",
-                            "Restart Required",
-                            JOptionPane.YES_NO_OPTION,
-                            JOptionPane.QUESTION_MESSAGE
-                        );
-                        
-                        if (choice == JOptionPane.YES_OPTION) {
-                            try {
-                                // Try to get the exact Java executable path
-                                String javaPath = Java9Plus.getJavaRuntimePath();
+                    int choice = JOptionPane.showConfirmDialog(
+                        _parentFrame,
+                        "Zoom will take effect when the simulator is next started. Restart it now?",
+                        "Restart Required",
+                        JOptionPane.YES_NO_OPTION,
+                        JOptionPane.QUESTION_MESSAGE
+                    );
+                    
+                    if (choice == JOptionPane.YES_OPTION) {
+                        try {
+                            // The exact Java executable, e.g. the bundled JRE under the
+                            // launch4j .exe on Windows rather than whatever is on the PATH.
+                            String javaPath = ProcessHandle.current().info().command().orElse(null);
 
-                                // Fallback to java.home if on java 8 
-                                if (javaPath == null) {
-                                    String javaHome = System.getProperty("java.home");
-                                    if (System.getProperty("os.name").toLowerCase().contains("windows")) {
-                                        javaPath = javaHome + File.separator + "bin" + File.separator + "java.exe";
-                                    } else {
-                                        javaPath = javaHome + File.separator + "bin" + File.separator + "java";
-                                    }
+                            // Fallback to java.home if the OS won't tell us the command
+                            if (javaPath == null) {
+                                String javaHome = System.getProperty("java.home");
+                                if (System.getProperty("os.name").toLowerCase().contains("windows")) {
+                                    javaPath = javaHome + File.separator + "bin" + File.separator + "java.exe";
+                                } else {
+                                    javaPath = javaHome + File.separator + "bin" + File.separator + "java";
                                 }
-                                
-                                // Get our JAR's location
-                                String jarPath;
-                                URL location = Baby.class.getProtectionDomain().getCodeSource().getLocation();
-                                try {
-                                    jarPath = new File(location.toURI()).getAbsolutePath();
-                                } catch (URISyntaxException e1) {
-                                    // Fallback to raw path if URI conversion fails
-                                    jarPath = location.getPath();
-                                }
-
-                                ProcessBuilder pb = new ProcessBuilder(javaPath, "-jar", jarPath);
-                                pb.start();
-                                System.exit(0);
-                            } catch (Exception ex) {
-                                JOptionPane.showMessageDialog(
-                                    _parentFrame,
-                                    "Error restarting simulator: " + ex.getMessage(),
-                                    "Error",
-                                    JOptionPane.ERROR_MESSAGE
-                                );
                             }
+                            
+                            // Get our JAR's location
+                            String jarPath;
+                            URL location = Baby.class.getProtectionDomain().getCodeSource().getLocation();
+                            try {
+                                jarPath = new File(location.toURI()).getAbsolutePath();
+                            } catch (URISyntaxException e1) {
+                                // Fallback to raw path if URI conversion fails
+                                jarPath = location.getPath();
+                            }
+
+                            ProcessBuilder pb = new ProcessBuilder(javaPath, "-jar", jarPath);
+                            pb.start();
+                            System.exit(0);
+                        } catch (Exception ex) {
+                            JOptionPane.showMessageDialog(
+                                _parentFrame,
+                                "Error restarting simulator: " + ex.getMessage(),
+                                "Error",
+                                JOptionPane.ERROR_MESSAGE
+                            );
                         }
-                    } else {
-                        // Show message that zooming is not supported on this JRE
-                        JOptionPane.showMessageDialog(
-                            _parentFrame,
-                            "Zooming is only supported on Java Runtime v9 or later. Please upgrade your Java Runtime.",
-                            "Error",
-                            JOptionPane.ERROR_MESSAGE
-                        );
                     }
                 });
                 zoomGroup.add(zoomItem);
