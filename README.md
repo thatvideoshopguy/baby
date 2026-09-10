@@ -42,28 +42,26 @@ To build and run the Manchester Baby Simulator, you will need the following:
 
 - [Open Java Development Kit (JDK) 17](https://openjdk.org/projects/jdk/17/) or higher
 - [Apache Maven](https://maven.apache.org/download.cgi)
-- [Caddy](https://caddyserver.com/download) (for testing browser version by serving CheerpJ)
 
 On macOS, you can install these dependencies using [Homebrew](https://brew.sh/):
 
 ```bash
-brew install openjdk@17 maven caddy
+brew install openjdk@17 maven
 ```
 
 On Windows, you can install these dependencies using [Chocolatey](https://chocolatey.org/):
 
 ```bash
-choco install openjdk maven caddy
+choco install openjdk maven
 ```
 
 On Debian/Ubuntu Linux, you can install these dependencies using apt:
 
 ```bash
-sudo apt install openjdk-21-jdk maven caddy
+sudo apt install openjdk-21-jdk maven
 ```
 
-(Older releases may only offer `openjdk-17-jdk`; either is fine. On Debian 12 and
-earlier, `caddy` comes from backports or [Caddy's own repository](https://caddyserver.com/docs/install#debian-ubuntu-raspbian).)
+(Older releases may only offer `openjdk-17-jdk`; either is fine.)
 
 ## Setup
 
@@ -146,24 +144,15 @@ java -jar target/baby.jar
 
 ### CheerpJ Web Application
 
-To run the browser version (which uses the CheerpJ JRE), execute the provided shell script:
+To run the browser version, which uses the CheerpJ JRE:
 
 ```bash
-./src/test/online_test/online_test.sh
+mvn clean verify -P serve
 ```
 
-CheerpJ requires an HTTP server, it will not work without one. This script launches a local
-Caddy server to serve the files for CheerpJ and automatically
-opens your default web browser with some HTML/Javascript which downloads the CheerpJ
-runtime and starts the simulator.
-
-If you're on Windows and don't have Caddy, you can create a basic HTTP server for the simulator
-on port 8080 using Python3 (if you have it) by running this batch script:
-
-```
-src\test\online_test\simple_test.bat
-```
-
+This builds the jar, copies `index.html` next to it in `target/`, serves that folder on
+<http://localhost:8080>, and opens your browser there. Press Ctrl-C to stop it, and use
+`-Dserve.port=8081` for a different port.
 
 ## Contributing
 

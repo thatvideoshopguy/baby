@@ -9,6 +9,8 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.build.timestamp.format>yyyy-MM-dd HH:mm</maven.build.timestamp.format>
+        <!-- port for the 'serve' profile, override with -Dserve.port=8081 -->
+        <serve.port>8080</serve.port>
     </properties>
 
     <build>
@@ -445,7 +447,75 @@
                 </plugins>
             </build>
         </profile>
-        
+
+        <!-- Profile for serving the CheerpJ browser build with only Maven and a JDK,
+             so there is nothing OS-specific to install. -->
+        <profile>
+            <id>serve</id>
+            <build>
+                <!-- so that plain "mvn -P serve" builds and serves, without naming a phase -->
+                <defaultGoal>verify</defaultGoal>
+                <plugins>
+                    <!-- The browser build is index.html plus the jar, served from one folder -->
+                    <plugin>
+                        <artifactId>maven-resources-plugin</artifactId>
+                        <executions>
+                            <execution>
+                                <id>copy-online-test-page</id>
+                                <phase>prepare-package</phase>
+                                <goals>
+                                    <goal>copy-resources</goal>
+                                </goals>
+                                <configuration>
+                                    <outputDirectory>${project.build.directory}</outputDirectory>
+                                    <resources>
+                                        <resource>
+                                            <directory>src/test/online_test</directory>
+                                            <includes>
+                                                <include>index.html</include>
+                                            </includes>
+                                            <filtering>false</filtering>
+                                        </resource>
+                                    </resources>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+
+                    <!-- Runs from source with the JDK's own launcher, so this is the same
+                         command on every OS and there is nothing to install or compile -->
+                    <plugin>
+                        <groupId>org.codehaus.mojo</groupId>
+                        <artifactId>exec-maven-plugin</artifactId>
+                        <version>3.1.1</version>
+                        <executions>
+                            <execution>
+                                <id>serve-online-test</id>
+                                <phase>verify</phase>
+                                <goals>
+                                    <goal>exec</goal>
+                                </goals>
+                                <configuration>
+                                    <executable>${java.home}/bin/java</executable>
+                                    <arguments>
+                                        <argument>src/test/online_test/RangeFileServer.java</argument>
+                                        <argument>${serve.port}</argument>
+                                        <argument>${project.build.directory}</argument>
+                                    </arguments>
+                                    <!-- Ctrl-C is how you stop the server, so don't report
+                                         SIGINT/SIGTERM as a build failure -->
+                                    <successCodes>
+                                        <successCode>0</successCode>
+                                        <successCode>130</successCode>
+                                        <successCode>143</successCode>
+                                    </successCodes>
+                                </configuration>
+                            </execution>
+                        </executions>
+                    </plugin>
+                </plugins>
+            </build>
+        </profile>
     </profiles>
 
     <dependencies>
