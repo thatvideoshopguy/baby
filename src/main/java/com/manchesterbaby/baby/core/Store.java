@@ -2,7 +2,6 @@ package com.manchesterbaby.baby.core;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileReader;
@@ -148,20 +147,19 @@ public class Store
 	
 	public String toString()
 	{
-		String output = "";
+		StringBuilder output = new StringBuilder();
 		
 		// for each line of the store
 		for(int lineNum = 0; lineNum<32; lineNum++)
 		{
-			String lineOutput = getBinaryString(getLine(lineNum));
-			
 			// reverse line String for SSEM bit ordering
-			lineOutput = reverseString(lineOutput);
-						
-			output += lineOutput + "  " + disassembleModern(getLine(lineNum)) + "\n";
+			output.append(reverseString(getBinaryString(getLine(lineNum))))
+				.append("  ")
+				.append(disassembleModern(getLine(lineNum)))
+				.append('\n');
 		}
 		
-		return output;	
+		return output.toString();	
 	}
 	
 	// save a snapshot file to the given filename
@@ -806,56 +804,24 @@ public class Store
 	// marks the line's comment if it's flagged as the next instruction to make it easy to spot on the disassembler
 	public String disassembleModern(int line, boolean isNextInstruction, boolean useNUMpseudoInstruction)
 	{	
-		String output = "";
-		
-		// get integer representation of the line
-		String lineValueDec = Integer.toString(line);
-		
 		// if any bits other than 0-4 and 13-15 are set then decide it's a NUM
-		if( (line & (~0x0000E01F)) != 0 && useNUMpseudoInstruction)
-		{
-			output = "NUM " + formatNUMoperand(line);
-		}
-		else
-		{
-			output = disassembleModernMnemonic(line); 
-		}
+		boolean isNum = (line & (~0x0000E01F)) != 0 && useNUMpseudoInstruction;
 		
-		
-		// format of line is
-		// mmm nn             ; alternative 
-		// so pad with spaces to 20 chars long
-		while(output.length() < 20)
-		{
-			output += " ";
-		}
+		// format of line is "mmm nn             ; alternative", so pad to 20 chars long
+		StringBuilder output = new StringBuilder(String.format("%-20s",
+				isNum ? "NUM " + formatNUMoperand(line) : disassembleModernMnemonic(line)));
 		
 		// add alternative value
-		if(isNextInstruction)
-		{
-			output += ";* ";
-		}
-		else
-		{
-			output += ";  ";
-		}
+		output.append(isNextInstruction ? ";* " : ";  ");
 
 		// add hex value of the line
 		// Useful as can often see the raw instruction in the 3 bits 13-15 (i.e. 4th nibble)
 		// and the line the instruction references in bits 0-4 (1st & 2nd nibble)
 		// and teaches the hex-binary relationship and emphasizes that the bit order on the store's
 		// display is unusual in being least signiticant bit on the left.
-		output += getHexString(line) + " : ";
+		output.append(getHexString(line)).append(" : ");
 		
-		// if any bits other than 0-4 and 13-15 are set then decide it's a NUM
-		if( (line & (~0x0000E01F)) != 0 && useNUMpseudoInstruction)
-		{
-			output += disassembleModernMnemonic(line);
-		}
-		else
-		{
-			output += lineValueDec;
-		}
+		output.append(isNum ? disassembleModernMnemonic(line) : Integer.toString(line));
 
 		// append value of the line being read from if an instruction that reads a line value
 		int functionNum = Control.getFunctionNumber(line);
@@ -866,10 +832,10 @@ public class Store
 			case Control.FUNC_SUB :
 			case Control.FUNC_SUB5 :
 				int actionLine=Control.getLineNumber(line);
-				output += " (" + getLine(actionLine) + ")";
+				output.append(" (").append(getLine(actionLine)).append(')');
 		}
 		
-		return output;
+		return output.toString();
 	}
 	
 	// takes a line value and returns the modern disassembled representation
@@ -907,25 +873,15 @@ public class Store
 		
 	public static String reverseString(String str)
 	{
-		// create string buffer of input string
-		StringBuffer strBuffer = new StringBuffer(str);
-		// reverse string buffer
-		strBuffer.reverse();
-		// back to String again
-		return strBuffer.toString();
+		return new StringBuilder(str).reverse().toString();
 	}
 	
 	// convert an int into a normal (LSB on the right) binary string
 	public static String getBinaryString(int value)
 	{
-		String output = "";
-		// for each bit in that number
-		for(int bit = 31; bit>=0; bit--)
-		{
-			// get ms-bit first 
-			output += "" + ((value >> bit) & 1);
-		}
-		return output;
+		// toBinaryString drops the leading zeros, and returns all 32 bits when the top one is set
+		String bits = Integer.toBinaryString(value);
+		return "0".repeat(32 - bits.length()) + bits;
 	}
 
 	public static String getHexString(int value)
