@@ -2,31 +2,96 @@
 <html lang="en">
 <head>
     <meta charset="utf-8"/>
+    <!-- The simulator's display is a fixed 700px wide, so pin the viewport just wider than it
+         rather than to the device width: the whole panel then fits any screen without
+         horizontal panning, and the page text scales with it. No maximum-scale, so pinch
+         zoom still works. -->
+    <meta name="viewport" content="width=720, initial-scale=1"/>
     <title>Manchester Baby Simulator</title>
-    <script src="https://cjrtnc.leaningtech.com/3.1/cj3loader.js"></script>
+    <script src="https://cjrtnc.leaningtech.com/4.3/loader.js"></script>
     <script>
         // Get URL parameters or use defaults
         // e.g. http://localhost:8081/index.html?jar=3.0.0-alpha.10&debug=yes
         const urlParams = new URLSearchParams(window.location.search);
-        const cheerpjVersion = '3.1';
+        const cheerpjVersion = '4.3';
         // TODO: move to query jar version from the java interface
         const jarVersion = urlParams.get('jar') || '3.2.0';
         const showDebug = urlParams.get('debug') || false;
         // note, other params may be requested from java side using getURLparam()
         // e.g. s (for state)
     </script>
-    <!-- "/classes/icons/baby.png" if running in caddy locally or just "baby.png" if on website -->
+    <!-- "/classes/icons/baby.png" if serving target/ locally or just "baby.png" if on website -->
     <link rel="icon" href="baby.png">
     <style>
+        :root {
+            color-scheme: light dark;
+            --page-bg: #ffffff;
+            --ink: #606060;
+            /* the old #C0C0C0 was about 1.7:1 on white, well under the 4.5:1 WCAG AA asks for */
+            --ink-quiet: #6b6b6b;
+            --link: #0b5fa5;
+            --surface: rgba(0, 0, 0, 0.02);
+            --border: #e0e0e0;
+        }
+        @media (prefers-color-scheme: dark) {
+            :root {
+                --page-bg: #121212;
+                --ink: #c8c8c8;
+                --ink-quiet: #9a9a9a;
+                --link: #7fb6e8;
+                --surface: rgba(255, 255, 255, 0.04);
+                --border: #333333;
+            }
+            /* the CheerpJ wordmark is dark ink on transparency, so sit it on a light plate
+               rather than inverting someone else's brand colours */
+            #footer img {
+                background: #fff;
+                padding: 2px 4px;
+                border-radius: 3px;
+            }
+            #console_output .error { color: #ff8a80; }
+        }
         body {
-            /* background-image: url('/large_replica_baby.png'); */
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-            background-attachment: fixed;
+            background: var(--page-bg);
+            color: var(--ink);
+            font-family: Arial, Helvetica, sans-serif;
             margin: 0;
             min-height: 100vh;
         }
+        a {
+            color: var(--link);
+        }
+        /* every band of page furniture is the same 700px column as the display */
+        .strip {
+            width: 100%;
+            max-width: 700px;
+            margin: 0 auto;
+            text-align: center;
+        }
+        h1 {
+            font-size: 36px;
+            font-weight: normal;
+            margin: 0;
+            line-height: 50px;
+        }
+        #header_links { font-size: 14px; line-height: 30px; }
+        #sub_header_links { font-size: 12px; line-height: 24px; }
+        #system_info { font-size: 10px; color: var(--ink-quiet); margin-top: 10px; }
+        #footer { font-size: 12px; line-height: 50px; }
+        #console_output {
+            display: none;
+            text-align: left;
+            margin-top: 10px;
+            white-space: pre-wrap;
+            font-family: monospace;
+            font-size: 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            max-height: 100px;
+            overflow-y: auto;
+            padding: 5px;
+        }
+        #console_output .error { color: #b00020; }
         #cheerpjDisplay {
             margin: 0 auto;
             display: block;
@@ -36,91 +101,35 @@
 <body>
 
 <script>
-    // Handle iframe focus
-    function setupIframeFocus() {
-        const iframe = document.querySelector('iframe[name="cheerpjDisplay"]');
-        if (iframe) {
-            // Focus the iframe initially
-            iframe.focus();
-            
-            // Handle clicks anywhere on the document
-            document.addEventListener('click', () => {
-                // Small delay to let other click handlers complete
-                setTimeout(() => {
-                    iframe.focus();
-                }, 10);
-            });
-
-            // Ensure iframe gets focus back when window gets focus
-            window.addEventListener('focus', () => {
-                iframe.focus();
-            });
-
-            return true;
-        }
-        return false;
-    }
-
-    // Check periodically for the iframe until it exists
-    const checkForIframe = setInterval(() => {
-        if (setupIframeFocus()) {
-            clearInterval(checkForIframe);
-        }
-    }, 100);
-</script>
-
-        
-<div id="simulator">    
-<script>
     // define the javascript functions to be called from the Java application running on the CheerpJ JVM in the browser
 
-    async function openFileInSimulator(fileName) {
-        console.log("File name received in javascript still:", fileName);
-        
-        // opens file in simulator
-        const response = await window.myApplication.openFile(fileName);
-    }
-
-    // Called from Java 
-    // Function to programmatically open file dialog and handle selection
-    // Receives call from Java to trigger it
+    // Called from Java to ask the user for a file. The input is never added to the document:
+    // click() opens the dialog on a detached element, so there is nothing to clean up if the
+    // user cancels.
     async function Java_com_manchesterbaby_baby_utils_CheerpJUtils_getFileForSimulator() {
         const input = document.createElement('input');
         input.type = 'file';
         input.accept = '.asm,.snp';
-        input.style.display = 'none';
-        
-        input.onchange = function(e) {
-            const file = e.target.files[0];
+
+        input.onchange = async () => {
+            const file = input.files[0];
             if (!file) return;
-
-            const reader = new FileReader();
-            
-            reader.onload = function(e) {
-                const content = e.target.result;
-
-                // just copy the filename into the simulator's sandbox filesystem in /str/ which is much simpler
-                cheerpOSAddStringFile("/str/" + file.name, content);
-
-                // and now the file is available in the simulator to be opened
-                openFileInSimulator("/str/" + file.name);
-            };
-
-            reader.onerror = function() {
-                console.error(`Error reading file "${file.name}"`);
-            };
-
-            reader.readAsText(file);
-            document.body.removeChild(input);
+            const path = "/str/" + file.name;
+            try {
+                // copying the text into the sandbox filesystem is much simpler than mounting
+                cheerpOSAddStringFile(path, await file.text());
+                await window.myApplication.openFile(path);
+            } catch (e) {
+                console.error(`Could not open "${file.name}":`, e);
+            }
         };
 
-        document.body.appendChild(input);
         input.click();
     }
 
     // Called from java
     // Requests URL params
-    // Recall first param is always CJ3Library hence lib as first param, per https://cheerpj.com/docs/guides/implementing-native-methods.html
+    // Recall first param is always the CheerpJ library object hence lib as first param, per https://cheerpj.com/docs/guides/implementing-native-methods.html
     async function Java_com_manchesterbaby_baby_utils_CheerpJUtils_getURLparam(lib, paramName) {
         console.log("Java requested URL param:", paramName);
         return urlParams.get(paramName);
@@ -141,112 +150,120 @@
 </script>
 
 <script>
-    // Store the initial device pixel ratio to detect zoom changes
+    // Browser zoom shows up as a change in device pixel ratio, reported on resize. The Java
+    // side repaints when told, as zooming tends to leave the display dirty.
     let lastPixelRatio = window.devicePixelRatio;
-
-    // Function that gets called when browser zoom changes
-    function onBrowserZoomChange() {
-        const newPixelRatio = window.devicePixelRatio;
-        if (newPixelRatio !== lastPixelRatio) {
-            console.log('Browser zoom level changed:', newPixelRatio);
-            lastPixelRatio = newPixelRatio;
-            
-            // If we have a Java application instance, notify it of the zoom change
-            if (window.myApplication) {
-                window.myApplication.onBrowserZoomChange(newPixelRatio);
-            }
-        }
-    }
-
-    // Listen for resize events which may indicate zoom changes
-    window.addEventListener('resize', function() {
-        // Use requestAnimationFrame to debounce the check
-        requestAnimationFrame(onBrowserZoomChange);
+    window.addEventListener('resize', () => {
+        if (window.devicePixelRatio === lastPixelRatio) return;
+        lastPixelRatio = window.devicePixelRatio;
+        console.log('Browser zoom level changed:', lastPixelRatio);
+        window.myApplication?.onBrowserZoomChange(lastPixelRatio);
     });
 
-    // Disable F5 and F10 keyboard shortcuts for Windows Chrome so Simulator can use them (and don't
-    // accidentally reload the page with F5)
-    function preventFn(event) {
-        // 116 F5, 121 F10
-        var functionKeys = new Array(116, 121);
-        if(functionKeys.indexOf(event.keyCode) > -1 ) {
-            event.preventDefault();
-        }
+    // F5 and F10 are the Simulator's own keys, so the browser must not act on them. CheerpJ is
+    // handed this as overrideShortcuts below, which sees key events inside the display as well;
+    // a listener on this document does not.
+    function isSimulatorShortcut(event) {
+        return event.key === 'F5' || event.key === 'F10';
     }
-    
-    document.addEventListener('keydown', preventFn, true); // true means use capture phase of event
 
 </script>
 
-<div id="page_title" style="text-align: center; width: 700px; margin: 0 auto; font-family: Arial, sans-serif; color: #606060; font-size: 36px; display: flex; align-items: center; justify-content: center; min-height: 50px;">
-manchesterbaby.com
-</div>
-<div id="header_links" style="text-align: center; width: 700px; margin: 0 auto; font-family: Arial, sans-serif; color: #606060; font-size: 14px; display: flex; align-items: center; justify-content: center; min-height: 30px;">
+<h1 id="page_title" class="strip">manchesterbaby.com</h1>
+<div id="header_links" class="strip">
 Visit the&nbsp;<a href='https://www.scienceandindustrymuseum.org.uk/whats-on/meet-baby' target='_blank' rel='noopener noreferrer'>replica Baby</a>&nbsp;at the Science and Industry Museum, Manchester.
 </div>
 
-<div id="sub_header_links" style="text-align: center; width: 700px; margin: 0 auto; font-family: Arial, sans-serif; color: #606060; font-size: 12px; display: flex; align-items: center; justify-content: center; min-height: 40 px;">
+<div id="sub_header_links" class="strip">
 <a href='https://github.com/davidpsharp/baby/blob/main/docs/quick-start-guide.md' target='_blank' rel='noopener noreferrer'>Get Started</a> &nbsp;|
 &nbsp; <a href='https://github.com/davidpsharp/baby/releases/latest' target='_blank' rel='noopener noreferrer'>Download Simulator Application</a> &nbsp;|
 &nbsp; <a href='https://github.com/davidpsharp/baby' target='_blank' rel='noopener noreferrer'>Source Code</a>
 </div>
 
+<!-- The simulator draws itself into this, as a Swing app on a canvas. A screen reader cannot
+     see inside that, so the Get Started guide linked above is the accessible route to the
+     same material, and the desktop download works with assistive technology on the OS. -->
+<div id="display" class="strip" role="application" aria-label="Manchester Baby Simulator front panel"></div>
 
-<!-- this next section gets moved to the footer by JS modifying the DOM -->
+<noscript>
+<p class="strip">The simulator needs JavaScript. The
+<a href='https://github.com/davidpsharp/baby/releases/latest'>desktop application</a> does not.</p>
+</noscript>
 
-<div id="system_info" style="text-align: center; width: 700px; margin: 10px auto 0; font-family: Arial, sans-serif; color: #C0C0C0; font-size: 10px;">
-</div>
+<div id="system_info" class="strip"></div>
 
-<div id="footer" style="text-align: center; width: 700px; margin: 0 auto; font-family: Arial, sans-serif; color: #606060; font-size: 12px; display: flex; align-items: center; justify-content: center; min-height: 50px;">
+<div id="footer" class="strip">
     <!-- encoded using https://base64.guru/converter/encode/image/png -->
-    Browser-based Java Runtime Environment provided by <a href='https://cheerpj.com/' target='_blank' rel='noopener noreferrer'><img src="data:image/png;base64,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"/></a>
+    Browser-based Java Runtime Environment provided by <a href='https://cheerpj.com/' target='_blank' rel='noopener noreferrer'><img src="data:image/png;base64,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" alt="CheerpJ"/></a>
 </div>
 
-<div id="console_output" style="display: none; text-align: left; width: 700px; margin: 10px auto 0; font-family: monospace; color: #C0C0C0; font-size: 10px; background: rgba(0,0,0,0.02); border: 1px solid #E0E0E0; max-height: 100px; overflow-y: auto; padding: 5px;">
-</div>
+<div id="console_output" class="strip"></div>
 
 <script>
 
-     // Function to detect browser and OS
-     function getSystemInfo() {
-        const userAgent = navigator.userAgent;
-        let browserInfo = "Unknown Browser";
-        let osInfo = "Unknown OS";
-        
-        // Detect OS
-        if (userAgent.includes("Windows")) osInfo = "Windows";
-        else if (userAgent.includes("Mac")) osInfo = "macOS";
-        else if (userAgent.includes("Linux")) osInfo = "Linux";
-        else if (userAgent.includes("Android")) osInfo = "Android";
-        else if (userAgent.includes("iOS")) osInfo = "iOS";
-        
-        // Detect Browser
-        if (userAgent.includes("Firefox/")) {
-            const version = userAgent.match(/Firefox\/([\d.]+)/);
-            browserInfo = `Firefox ${version ? version[1] : ''}`;
-        } else if (userAgent.includes("Edg/")) {
-            const version = userAgent.match(/Edg\/([\d.]+)/);
-            browserInfo = `Edge ${version ? version[1] : ''}`;
-        } else if (userAgent.includes("Chrome/")) {
-            const version = userAgent.match(/Chrome\/([\d.]+)/);
-            browserInfo = `Chrome ${version ? version[1] : ''}`;
-        } else if (userAgent.includes("Safari/") && !userAgent.includes("Chrome")) {
-            const version = userAgent.match(/Version\/([\d.]+)/);
-            browserInfo = `Safari ${version ? version[1] : ''}`;
-        } 
-        
-        return { browserInfo, osInfo };
+    // What the footer reports, so a support question arrives with the platform attached.
+    // First match wins, so the order of these matters.
+    const OS_PATTERNS = [
+        [/Windows/, 'Windows'],
+        // mobile first: an Android agent also says Linux, and an iPad can say Macintosh
+        [/Android/, 'Android'],
+        [/iPhone|iPad|iPod/, 'iOS'],
+        [/Mac/, 'macOS'],
+        [/Linux/, 'Linux'],
+    ];
+    const BROWSER_PATTERNS = [
+        [/Firefox\/([\d.]+)/, 'Firefox'],
+        // Edge before Chrome: it reports both, and Safari last as everything says Safari
+        [/Edg\/([\d.]+)/, 'Edge'],
+        [/Chrome\/([\d.]+)/, 'Chrome'],
+        [/Version\/([\d.]+).*Safari/, 'Safari'],
+    ];
+
+    function describe(patterns, userAgent, fallback) {
+        for (const [pattern, name] of patterns) {
+            const match = userAgent.match(pattern);
+            if (match) return match[1] ? `${name} ${match[1]}` : name;
+        }
+        return fallback;
     }
 
-    // Function to update system info display
     function updateSystemInfo() {
-        const { browserInfo, osInfo } = getSystemInfo();
-        const systemInfoDiv = document.getElementById('system_info');
-        if (systemInfoDiv) {
-            systemInfoDiv.textContent = `os:${osInfo} | browser:${browserInfo} | cheerpj:${cheerpjVersion} | baby:${jarVersion}`;
-        }
+        const agent = navigator.userAgent;
+        document.getElementById('system_info').textContent =
+            `os:${describe(OS_PATTERNS, agent, 'Unknown OS')}`
+            + ` | browser:${describe(BROWSER_PATTERNS, agent, 'Unknown Browser')}`
+            + ` | cheerpj:${cheerpjVersion} | baby:${jarVersion}`;
     }
     
+    // With ?debug=yes the console is mirrored into the page, for machines where devtools are
+    // not an option. Installed before cheerpjInit so the startup messages are caught too.
+    if (showDebug) {
+        const consoleDiv = document.getElementById('console_output');
+
+        function appendToConsole(message, isError) {
+            consoleDiv.style.display = 'block';
+            const line = document.createElement('div');
+            if (isError) line.className = 'error';
+            // textContent, not innerHTML: a log message is text, and may well contain a <
+            line.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            consoleDiv.appendChild(line);
+            consoleDiv.scrollTop = consoleDiv.scrollHeight;
+        }
+
+        for (const [name, prefix] of [['log', ''], ['error', 'ERROR: ']]) {
+            const original = console[name];
+            console[name] = (...args) => {
+                appendToConsole(prefix + args.join(' '), name === 'error');
+                original.apply(console, args);
+            };
+        }
+
+        // addEventListener rather than window.onerror, which would replace any other handler
+        window.addEventListener('error', (event) => {
+            appendToConsole(`UNHANDLED ERROR: ${event.message}\nAt: ${event.filename}:${event.lineno}:${event.colno}`, true);
+        });
+    }
+
     // Wait for the script to load before initializing CheerpJ
     (async function () {
         // Check if browser supports clipboard-read permission
@@ -263,55 +280,38 @@ Visit the&nbsp;<a href='https://www.scienceandindustrymuseum.org.uk/whats-on/mee
         console.log('Using clipboard mode:', clipboardMode);
 
         await cheerpjInit({
+            // must match <release> in pom.xml; CheerpJ defaults to Java 8 if omitted
+            version: 11,
             licenseKey:"v1-78XJpCYyasiWIQVMqUfwXea3tVk=",
             clipboardMode: clipboardMode,
+            // F5 and F10 belong to the Simulator, not the browser
+            overrideShortcuts: isSimulatorShortcut,
+            // Startup can be cut further by preloading the runtime files the simulator actually
+            // touches: run cjGetRuntimeResources() in the browser console once it is up, and
+            // paste what it prints in here as preloadResources.
+            // https://cheerpj.com/docs/guides/Startup-time-optimization.html
             natives: {
                 Java_com_manchesterbaby_baby_utils_CheerpJUtils_getFileForSimulator,
                 Java_com_manchesterbaby_baby_utils_CheerpJUtils_nativeSetApplication,           
                 Java_com_manchesterbaby_baby_utils_CheerpJUtils_getURLparam
             }
         });
-        // set cheerpj size to be the same size as the window in Baby.java
-        cheerpjCreateDisplay(700, 950);
+        // Same size as the window in Baby.java, and given a parent so it lands inside #display
+        // rather than at the end of the body, which is what the footer used to be moved around.
+        const display = cheerpjCreateDisplay(700, 950, document.getElementById('display'));
 
-        // Wait for iframe to be created and set up focus handling
-        const checkForIframe = setInterval(() => {
-            const iframe = document.querySelector('iframe[name="cheerpjDisplay"]');
-            if (iframe) {
-                clearInterval(checkForIframe);
-                
-                // Focus the iframe initially
-                iframe.focus();
-                
-                // Handle clicks anywhere on the document
-                document.addEventListener('click', () => {
-                    // Small delay to let other click handlers complete
-                    setTimeout(() => {
-                        iframe.focus();
-                    }, 10);
-                });
-
-                // Ensure iframe gets focus back when window gets focus
-                window.addEventListener('focus', () => {
-                    iframe.focus();
-                });
+        // Keyboard input only reaches the JVM while CheerpJ's own display has focus, and the
+        // iframe it puts there does not exist the instant the display is created.
+        const focusDisplay = () => (display.querySelector('iframe') || display).focus();
+        const waitForDisplay = setInterval(() => {
+            if (display.querySelector('iframe')) {
+                clearInterval(waitForDisplay);
+                focusDisplay();
             }
         }, 100);
-
-        // Move footer & system_info div to be the last elements in the body - needs to be done in script as
-        // cheerpjCreateDisplay spews an iframe etc into the DOM after the footer otherwise
-        const system_info = document.getElementById('system_info');
-        if (system_info) {
-            document.body.appendChild(system_info);
-        }
-        const footer = document.getElementById('footer');
-        if (footer) {
-            document.body.appendChild(footer);
-        }
-        const console_output = document.getElementById('console_output');
-        if (console_output) {
-            document.body.appendChild(console_output);
-        }        
+        // Hand focus back when the tab is returned to, but leave clicks on the page's own links
+        // alone: stealing focus from those made them unreachable by keyboard.
+        window.addEventListener('focus', focusDisplay);
 
         // Update system info after CheerpJ is initialized
         updateSystemInfo();
@@ -319,50 +319,9 @@ Visit the&nbsp;<a href='https://www.scienceandindustrymuseum.org.uk/whats-on/mee
         // Load the Java application using the specified jar file
         // e.g. baby.jar
         // if running on davidsharp.com this need amending to /app/baby/baby.jar as no longer in route of webserver folder
-        await cheerpjRunJar(`/app/baby.jar`);
+        await cheerpjRunJar('/app/baby.jar');
     })();
 
-
-    // Override console methods to capture output
-    (function() {
-        if(showDebug) {
-            const consoleDiv = document.getElementById('console_output');
-            
-            function appendToConsole(message, color) {
-                if (consoleDiv) {
-                    if (consoleDiv.style.display === 'none') {
-                        consoleDiv.style.display = 'block';
-                    }
-                    const timestamp = new Date().toLocaleTimeString();
-                    consoleDiv.innerHTML += `<span style="color: ${color}">[${timestamp}] ${message}</span><br>`;
-                    consoleDiv.scrollTop = consoleDiv.scrollHeight;
-                }
-            }
-
-            // Capture console.log
-            const originalConsoleLog = console.log;
-            console.log = function() {
-                const output = Array.from(arguments).join(' ');
-                appendToConsole(output, '#808080');
-                originalConsoleLog.apply(console, arguments);
-            };
-
-            // Capture console.error
-            const originalConsoleError = console.error;
-            console.error = function() {
-                const output = Array.from(arguments).join(' ');
-                appendToConsole('ERROR: ' + output, '#FF0000');
-                originalConsoleError.apply(console, arguments);
-            };
-
-            // Capture unhandled errors
-            window.onerror = function(message, source, lineno, colno, error) {
-                const errorDetail = `${message}\nAt: ${source}:${lineno}:${colno}`;
-                appendToConsole('UNHANDLED ERROR: ' + errorDetail, '#FF0000');
-                return false; // Let the error propagate
-            };
-        }
-    })();
 </script>
 
 </body>
