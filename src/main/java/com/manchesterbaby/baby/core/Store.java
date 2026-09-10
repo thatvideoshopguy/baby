@@ -255,7 +255,7 @@ public class Store
 		
 		BufferedReader in;
 
-		if(loadMethod == "URL")
+		if(loadMethod.equals("URL"))
 		{
 			// load URL from JAR, Zip etc. (typically an Example program)
 			InputStream assemblyReader = openFile(fileName);
@@ -501,7 +501,7 @@ public class Store
         int numberOfLines = -1;
         BufferedReader in;
 
-        if(loadMethod == "URL")
+        if(loadMethod.equals("URL"))
         {
             // load URL from JAR, Zip etc. (typically an Example program)
             InputStream assemblyReader = openFile(fileName);
